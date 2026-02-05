@@ -1,0 +1,35 @@
+# Built files
+*.apk
+*.aab
+build/
+out/
+
+# Gradle
+.gradle/
+local.properties
+
+# IntelliJ / Android Studio
+*.iml
+.idea/*
+!.idea/codeStyles
+!.idea/runConfigurations
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+
+# Native build
+.externalNativeBuild
+.cxx/
+
+# Keystore
+*.jks
+*.keystore
+
+# Google Services
+google-services.json
+
+# SVN
+.svn/
