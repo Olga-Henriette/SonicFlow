@@ -3,6 +3,7 @@ package com.sonicflow.app.core.data.local.dao
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Transaction
 import com.sonicflow.app.core.data.local.entity.PlayHistoryEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -20,4 +21,15 @@ interface PlayHistoryDao {
 
     @Query("DELETE FROM play_history WHERE playedAt < :timestamp")
     suspend fun deleteOldHistory(timestamp: Long)
+
+    @Transaction
+    suspend fun incrementPlayCount(songId: Long) {
+        insertPlayHistory(
+            PlayHistoryEntity(
+                songId = songId,
+                playedAt = System.currentTimeMillis(),
+                playCount = 1
+            )
+        )
+    }
 }

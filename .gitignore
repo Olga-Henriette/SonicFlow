@@ -1,15 +1,85 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+# Built application files
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Files for the ART/Dalvik VM
+*.class
+
+# Java class files
+*.jar
+
+# Generated files
+bin/
+gen/
+out/
+build/
+.gradle/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Gradle files
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# Local configuration file (SDK path, etc)
 local.properties
+
+# IntelliJ IDEA
+*.iml
+*.iws
+*.ipr
+.idea/
+.idea/caches
+.idea/libraries
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/gradle.xml
+.idea/jarRepositories.xml
+.idea/compiler.xml
+.idea/misc.xml
+
+# Keystore files
+*.jks
+*.keystore
+
+# Android Studio Navigation editor temp files
+.navigation/
+
+# Android Studio captures folder
+captures/
+
+# Signing files
+.signing/
+
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Kotlin
+.kotlin/
+*.kotlin_module
+
+# Room schemas (on peut les commit pour les migrations, mais pour l'instant on ignore)
+app/schemas/
+
+# NDK
+obj/
+
+# Test reports
+test-results/
+androidTest-results/

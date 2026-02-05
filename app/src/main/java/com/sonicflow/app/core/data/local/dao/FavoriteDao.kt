@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.sonicflow.app.core.data.local.entity.FavoriteSongEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -24,4 +25,13 @@ interface FavoriteDao {
 
     @Query("DELETE FROM favorite_songs WHERE songId = :songId")
     suspend fun removeFavorite(songId: Long)
+
+    @Transaction
+    suspend fun toggleFavorite(songId: Long) {
+        if (isFavorite(songId)) {
+            removeFavorite(songId)
+        } else {
+            addFavorite(FavoriteSongEntity(songId))
+        }
+    }
 }
