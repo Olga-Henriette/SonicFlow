@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.sonicflow.app.core.ui.components.AlbumArtImage
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sonicflow.app.core.common.formatDuration
 import kotlin.math.roundToInt
@@ -74,6 +75,7 @@ fun PlayerScreen(
 
                     // Artwork (pour l'instant un placeholder)
                     AlbumArtwork(
+                        albumId = state.currentSong?.albumId ?: 0L,
                         modifier = Modifier
                             .size(320.dp)
                             .weight(1f, fill = false)
@@ -157,22 +159,16 @@ fun NoSongPlaying(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun AlbumArtwork(modifier: Modifier = Modifier) {
-    // Pour l'instant, un placeholder
-    Box(
-        modifier = modifier
-            .aspectRatio(1f)
-            .clip(MaterialTheme.shapes.large)
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.MusicNote,
-            contentDescription = null,
-            modifier = Modifier.size(120.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
+fun AlbumArtwork(
+    albumId: Long,
+    modifier: Modifier = Modifier
+) {
+    AlbumArtImage(
+        albumId = albumId,
+        contentDescription = "Album artwork",
+        modifier = modifier.aspectRatio(1f),
+        size = 320.dp
+    )
 }
 
 @Composable

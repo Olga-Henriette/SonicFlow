@@ -13,13 +13,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sonicflow.app.core.domain.model.Song
+import com.sonicflow.app.core.ui.components.AlbumArtImage
 
 @Composable
 fun MiniPlayer(
     currentSong: Song?,
     isPlaying: Boolean,
-    currentPosition: Long = 0L, // ← AJOUTER
-    duration: Long = 0L, // ← AJOUTER
+    currentPosition: Long = 0L,
+    duration: Long = 0L,
     onPlayPauseClick: () -> Unit,
     onNextClick: () -> Unit,
     onMiniPlayerClick: () -> Unit,
@@ -52,21 +53,11 @@ fun MiniPlayer(
                     .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Album art placeholder
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(MaterialTheme.shapes.small)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MusicNote,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                AlbumArtImage(
+                    albumId = currentSong.albumId,
+                    contentDescription = currentSong.album,
+                    size = 48.dp
+                )
 
                 Spacer(modifier = Modifier.width(12.dp))
 

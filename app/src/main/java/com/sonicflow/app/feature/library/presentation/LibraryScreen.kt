@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.sonicflow.app.core.ui.components.AlbumArtImage
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sonicflow.app.core.common.formatDuration
 import androidx.compose.foundation.clickable
@@ -115,6 +116,13 @@ fun SongItem(
                 text = "${song.artist} • ${song.album}",
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
+            )
+        },
+        leadingContent = {
+            AlbumArtImage(
+                albumId = song.albumId,
+                contentDescription = song.album,
+                size = 56.dp
             )
         },
         trailingContent = {
