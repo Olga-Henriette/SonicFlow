@@ -2,6 +2,7 @@ package com.sonicflow.app.core.player.controller
 
 import android.content.Context
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.sonicflow.app.core.domain.model.Song
@@ -38,6 +39,9 @@ class PlayerController @Inject constructor(
     val currentSong: StateFlow<Song?> = _currentSong.asStateFlow()
 
     // Listener pour les événements ExoPlayer (AVANT exoPlayer)
+    var onSongEnded: (() -> Unit)? = null
+    var onMediaItemTransition: ((Int) -> Unit)? = null
+
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _isPlaying.value = isPlaying
@@ -51,8 +55,8 @@ class PlayerController @Inject constructor(
                     Timber.d("Player ready, duration: ${_duration.value}")
                 }
                 Player.STATE_ENDED -> {
-                    Timber.d("Player ended")
-                    // TODO: Passer à la chanson suivante
+                    Timber.d("Player ended - calling onSongEnded")
+                    onSongEnded?.invoke()
                 }
                 Player.STATE_BUFFERING -> {
                     Timber.d("Player buffering")
@@ -68,6 +72,8 @@ class PlayerController @Inject constructor(
     private val exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build().apply {
         // Écouter les événements du player
         addListener(playerListener)
+
+        repeatMode = Player.REPEAT_MODE_OFF
     }
 
     /**
@@ -76,9 +82,18 @@ class PlayerController @Inject constructor(
     fun playSong(song: Song) {
         Timber.d("Playing song: ${song.title}")
 
+        val mediaMetadata = androidx.media3.common.MediaMetadata.Builder()
+            .setTitle(song.title)
+            .setArtist(song.artist)
+            .setAlbumTitle(song.album)
+            .setDisplayTitle(song.title)
+            .setSubtitle(song.artist)
+            .build()
+
         val mediaItem = MediaItem.Builder()
             .setUri(song.uri)
             .setMediaId(song.id.toString())
+            .setMediaMetadata(mediaMetadata)
             .build()
 
         exoPlayer.setMediaItem(mediaItem)
@@ -86,6 +101,33 @@ class PlayerController @Inject constructor(
         exoPlayer.play()
 
         _currentSong.value = song
+    }
+
+    /**
+     * Définir une queue de chansons
+     */
+    fun setQueue(songs: List<Song>, startIndex: Int = 0) {
+        Timber.d("Setting queue: ${songs.size} songs, start at $startIndex")
+
+        val mediaItems = songs.map { song ->
+            val mediaMetadata = androidx.media3.common.MediaMetadata.Builder()
+                .setTitle(song.title)
+                .setArtist(song.artist)
+                .setAlbumTitle(song.album)
+                .setDisplayTitle(song.title)
+                .setSubtitle(song.artist)
+                .build()
+
+            MediaItem.Builder()
+                .setUri(song.uri)
+                .setMediaId(song.id.toString())
+                .setMediaMetadata(mediaMetadata)
+                .build()
+        }
+
+        exoPlayer.setMediaItems(mediaItems, startIndex, 0L)
+        exoPlayer.prepare()
+        exoPlayer.play()
     }
 
     /**

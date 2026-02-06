@@ -40,6 +40,23 @@ class PlayerViewModel @Inject constructor(
         observePlayerController()
         // Démarrer la mise à jour de la position
         startPositionUpdates()
+
+        // Écouter la fin de chanson
+        playerController.onSongEnded = {
+            handleIntent(PlayerIntent.Next)
+        }
+
+        playerController.onMediaItemTransition = { newIndex ->
+            val currentState = _state.value
+            if (newIndex < currentState.queue.size) {
+                _state.update {
+                    it.copy(
+                        currentIndex = newIndex,
+                        currentSong = currentState.queue[newIndex]
+                    )
+                }
+            }
+        }
     }
 
     /**
@@ -110,7 +127,9 @@ class PlayerViewModel @Inject constructor(
      */
     private fun playSong(song: Song) {
         Timber.d("Playing song: ${song.title}")
-        playerController.playSong(song)
+
+        playerController.setQueue(listOf(song), 0)
+
         _state.update {
             it.copy(
                 currentSong = song,
@@ -127,7 +146,8 @@ class PlayerViewModel @Inject constructor(
         if (songs.isEmpty()) return
 
         val index = startIndex.coerceIn(0, songs.lastIndex)
-        playerController.playSong(songs[index])
+
+        playerController.setQueue(songs, index)
 
         _state.update {
             it.copy(

@@ -1,3 +1,4 @@
+// core/player/service/MusicService.kt
 package com.sonicflow.app.core.player.service
 
 import android.app.PendingIntent
@@ -5,7 +6,6 @@ import android.content.Intent
 import android.os.Build
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.sonicflow.app.MainActivity
@@ -18,7 +18,6 @@ import javax.inject.Inject
  * Service de lecture audio en arrière-plan
  * - Survit même si l'app est fermée
  * - Gère MediaSession (contrôles lockscreen, Bluetooth, etc.)
- * - Notification obligatoire (foreground service)
  */
 @AndroidEntryPoint
 class MusicService : MediaSessionService() {
@@ -32,7 +31,7 @@ class MusicService : MediaSessionService() {
         super.onCreate()
         Timber.d("MusicService onCreate")
 
-        // Configurer les attributs audio (optimisé pour la musique)
+        // Configurer les attributs audio
         val audioAttributes = AudioAttributes.Builder()
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .setUsage(C.USAGE_MEDIA)
@@ -40,7 +39,7 @@ class MusicService : MediaSessionService() {
 
         playerController.getExoPlayer().setAudioAttributes(audioAttributes, true)
 
-        // Créer le PendingIntent pour ouvrir l'app depuis la notification
+        // Créer le PendingIntent pour ouvrir l'app
         val sessionActivityIntent = Intent(this, MainActivity::class.java)
         val sessionActivityPendingIntent = PendingIntent.getActivity(
             this,

@@ -19,7 +19,7 @@ import com.sonicflow.app.core.domain.model.Song
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
-    onSongClick: (Song) -> Unit = {}
+    onSongClick: (Song, List<Song>) -> Unit = { _, _ -> }
 ) {
     val songs by viewModel.songs.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -65,7 +65,7 @@ fun LibraryScreen(
                         items(songs) { song ->
                             SongItem(
                                 song = song,
-                                onClick = { onSongClick(song) }
+                                onClick = { onSongClick(song, songs) }
                             )
                         }
                     }
