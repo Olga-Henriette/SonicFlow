@@ -15,20 +15,42 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.sonicflow.app.core.common.formatDuration
 import androidx.compose.foundation.clickable
 import com.sonicflow.app.core.domain.model.Song
+import com.sonicflow.app.feature.player.components.MiniPlayer
+import com.sonicflow.app.feature.player.presentation.PlayerIntent
+import com.sonicflow.app.feature.player.presentation.PlayerState
+import com.sonicflow.app.feature.player.presentation.PlayerViewModel
 
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
-    onSongClick: (Song, List<Song>) -> Unit = { _, _ -> }
+    playerViewModel: PlayerViewModel = hiltViewModel(),
+    onSongClick: (Song, List<Song>) -> Unit = { _, _ -> },
+    onMiniPlayerClick: () -> Unit = {}
 ) {
     val songs by viewModel.songs.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val playerState by playerViewModel.state.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Library") }
+            )
+        },
+        bottomBar = {
+            MiniPlayer(
+                currentSong = playerState.currentSong,
+                isPlaying = playerState.isPlaying,
+                currentPosition = playerState.currentPosition,
+                duration = playerState.duration,
+                onPlayPauseClick = {
+                    playerViewModel.handleIntent(PlayerIntent.PlayPause)
+                },
+                onNextClick = {
+                    playerViewModel.handleIntent(PlayerIntent.Next)
+                },
+                onMiniPlayerClick = onMiniPlayerClick
             )
         }
     ) { paddingValues ->

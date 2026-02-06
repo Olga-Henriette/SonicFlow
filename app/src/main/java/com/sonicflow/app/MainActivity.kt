@@ -120,6 +120,7 @@ fun AppNavigation() {
     when (currentScreen) {
         Screen.Library -> {
             LibraryScreen(
+                playerViewModel = playerViewModel,
                 onSongClick = { song, allSongs ->
                     val startIndex = allSongs.indexOf(song)
                     playerViewModel.handleIntent(
@@ -128,6 +129,9 @@ fun AppNavigation() {
                             startIndex = startIndex
                         )
                     )
+                    currentScreen = Screen.Player
+                },
+                onMiniPlayerClick = {
                     currentScreen = Screen.Player
                 }
             )
