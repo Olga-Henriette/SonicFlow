@@ -10,32 +10,33 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.ui.theme.SonicFlowTheme
 import com.sonicflow.app.feature.library.presentation.LibraryScreen
+import com.sonicflow.app.feature.player.presentation.PlayerIntent
+import com.sonicflow.app.feature.player.presentation.PlayerScreen
+import com.sonicflow.app.feature.player.presentation.PlayerViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    // Lanceur de demande de permission
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            // Permission accordée
             setupUI()
         } else {
-            // Permission refusée - à gérer plus tard
-            setupUI() // Pour l'instant on continue quand même
+            setupUI()
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        // Demander la permission de lire les fichiers audio
         requestAudioPermission()
     }
 
@@ -45,7 +46,6 @@ class MainActivity : ComponentActivity() {
         } else {
             Manifest.permission.READ_EXTERNAL_STORAGE
         }
-
         permissionLauncher.launch(permission)
     }
 
@@ -56,9 +56,40 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    LibraryScreen()
+                    AppNavigation()
                 }
             }
         }
     }
+}
+
+@Composable
+fun AppNavigation() {
+    var currentScreen by remember { mutableStateOf<Screen>(Screen.Library) }
+    val playerViewModel: PlayerViewModel = hiltViewModel()
+
+    when (currentScreen) {
+        Screen.Library -> {
+            LibraryScreen(
+                onSongClick = { song ->
+                    // Jouer la chanson et ouvrir le player
+                    playerViewModel.handleIntent(PlayerIntent.PlaySong(song))
+                    currentScreen = Screen.Player
+                }
+            )
+        }
+        Screen.Player -> {
+            PlayerScreen(
+                viewModel = playerViewModel,
+                onNavigateBack = {
+                    currentScreen = Screen.Library
+                }
+            )
+        }
+    }
+}
+
+sealed class Screen {
+    data object Library : Screen()
+    data object Player : Screen()
 }

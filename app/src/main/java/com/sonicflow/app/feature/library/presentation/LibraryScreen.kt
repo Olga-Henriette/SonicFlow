@@ -13,11 +13,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sonicflow.app.core.common.formatDuration
+import androidx.compose.foundation.clickable
 import com.sonicflow.app.core.domain.model.Song
 
 @Composable
 fun LibraryScreen(
-    viewModel: LibraryViewModel = hiltViewModel()
+    viewModel: LibraryViewModel = hiltViewModel(),
+    onSongClick: (Song) -> Unit = {}
 ) {
     val songs by viewModel.songs.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -61,7 +63,10 @@ fun LibraryScreen(
                         modifier = Modifier.fillMaxSize()
                     ) {
                         items(songs) { song ->
-                            SongItem(song = song)
+                            SongItem(
+                                song = song,
+                                onClick = { onSongClick(song) }
+                            )
                         }
                     }
                 }
@@ -71,7 +76,10 @@ fun LibraryScreen(
 }
 
 @Composable
-fun SongItem(song: Song) {
+fun SongItem(
+    song: Song,
+    onClick: () -> Unit = {}
+) {
     ListItem(
         headlineContent = {
             Text(
@@ -92,7 +100,8 @@ fun SongItem(song: Song) {
                 text = song.duration.formatDuration(),
                 style = MaterialTheme.typography.bodySmall
             )
-        }
+        },
+        modifier = Modifier.clickable(onClick = onClick)
     )
     HorizontalDivider()
 }
