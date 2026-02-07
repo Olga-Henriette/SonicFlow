@@ -20,8 +20,11 @@ import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import com.sonicflow.app.core.domain.model.Song
+import com.sonicflow.app.core.domain.model.Playlist
+import com.sonicflow.app.core.domain.usecase.GetPlaylistSongsUseCase
 import com.sonicflow.app.core.player.service.MusicService
 import com.sonicflow.app.core.ui.theme.SonicFlowTheme
+import com.sonicflow.app.feature.playlist.presentation.PlaylistDetailScreen
 import com.sonicflow.app.feature.library.presentation.LibraryScreen
 import com.sonicflow.app.feature.player.presentation.PlayerIntent
 import com.sonicflow.app.feature.player.presentation.PlayerScreen
@@ -112,12 +115,19 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+sealed class Screen {
+    data object Library : Screen()
+    data object Player : Screen()
+    data class PlaylistDetail(val playlist: Playlist) : Screen()
+}
+
+
 @Composable
 fun AppNavigation() {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Library) }
     val playerViewModel: PlayerViewModel = hiltViewModel()
 
-    when (currentScreen) {
+    when (val screen = currentScreen) {
         Screen.Library -> {
             LibraryScreen(
                 playerViewModel = playerViewModel,
@@ -130,6 +140,9 @@ fun AppNavigation() {
                         )
                     )
                     currentScreen = Screen.Player
+                },
+                onPlaylistClick = { playlist ->
+                    currentScreen = Screen.PlaylistDetail(playlist)
                 },
                 onMiniPlayerClick = {
                     currentScreen = Screen.Player
@@ -144,10 +157,14 @@ fun AppNavigation() {
                 }
             )
         }
+        is Screen.PlaylistDetail -> {
+            PlaylistDetailScreen(
+                playlist = screen.playlist,
+                playerViewModel = playerViewModel,
+                onNavigateBack = {
+                    currentScreen = Screen.Library
+                }
+            )
+        }
     }
-}
-
-sealed class Screen {
-    data object Library : Screen()
-    data object Player : Screen()
 }

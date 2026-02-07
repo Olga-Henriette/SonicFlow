@@ -22,6 +22,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.sonicflow.app.core.common.formatDuration
 import androidx.compose.foundation.clickable
 import com.sonicflow.app.core.domain.model.Song
+import com.sonicflow.app.core.domain.model.Playlist
+import com.sonicflow.app.feature.playlist.presentation.PlaylistsScreen
 import com.sonicflow.app.feature.player.components.MiniPlayer
 import com.sonicflow.app.feature.player.presentation.PlayerIntent
 import com.sonicflow.app.feature.player.presentation.PlayerState
@@ -32,6 +34,7 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
     playerViewModel: PlayerViewModel = hiltViewModel(),
     onSongClick: (Song, List<Song>) -> Unit = { _, _ -> },
+    onPlaylistClick: (Playlist) -> Unit = {},
     onMiniPlayerClick: () -> Unit = {}
 ) {
     val songs by viewModel.songs.collectAsState()
@@ -41,7 +44,7 @@ fun LibraryScreen(
 
     // Gestion des onglets
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Songs", "Favorites", "Albums", "Artists")
+    val tabs = listOf("Songs", "Favorites", "Playlists","Albums", "Artists")
 
     // Filtrer les favoris
     val favoriteSongs = songs.filter { it.isFavorite }
@@ -115,11 +118,14 @@ fun LibraryScreen(
                             onSongClick = onSongClick,
                             emptyMessage = "No favorite songs yet"
                         )
-                        2 -> Text(
+                        2 -> PlaylistsScreen(
+                            onPlaylistClick = onPlaylistClick
+                        )
+                        3 -> Text(
                             text = "Albums - Coming soon",
                             modifier = Modifier.align(Alignment.Center)
                         )
-                        3 -> Text(
+                        4 -> Text(
                             text = "Artists - Coming soon",
                             modifier = Modifier.align(Alignment.Center)
                         )
