@@ -17,8 +17,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.PlaylistAdd
+import com.sonicflow.app.feature.playlist.components.AddToPlaylistDialog
+import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.ui.components.AlbumArtImage
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.sonicflow.app.core.common.formatDuration
 import kotlin.math.roundToInt
 
@@ -121,6 +127,7 @@ fun PlayerScreen(
                     // Contrôles secondaires
                     SecondaryControls(
                         currentSongId = state.currentSong?.id,
+                        currentSong = state.currentSong,
                         isFavorite = state.currentSong?.isFavorite ?: false,
                         isShuffled = state.isShuffled,
                         repeatMode = state.repeatMode,
@@ -302,6 +309,7 @@ fun PlayerControls(
 @Composable
 fun SecondaryControls(
     currentSongId: Long?,
+    currentSong: Song?,
     isFavorite: Boolean,
     isShuffled: Boolean,
     repeatMode: RepeatMode,
@@ -310,6 +318,7 @@ fun SecondaryControls(
     onRepeatToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showAddToPlaylist by remember { mutableStateOf(false) }
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -361,11 +370,20 @@ fun SecondaryControls(
             )
         }
 
-        // Queue (placeholder)
-        IconButton(onClick = { /* TODO */ }) {
+        IconButton(
+            onClick = { showAddToPlaylist = true },
+            enabled = currentSongId != null
+        ) {
             Icon(
-                imageVector = Icons.Default.QueueMusic,
-                contentDescription = "Queue"
+                imageVector = Icons.Default.PlaylistAdd,
+                contentDescription = "Add to playlist"
+            )
+        }
+
+        if (showAddToPlaylist && currentSong != null) {
+            AddToPlaylistDialog(
+                song = currentSong,
+                onDismiss = { showAddToPlaylist = false }
             )
         }
     }

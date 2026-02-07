@@ -7,6 +7,11 @@ import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlaylistAdd
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -21,6 +26,9 @@ import com.sonicflow.app.core.ui.components.AlbumArtImage
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sonicflow.app.core.common.formatDuration
 import androidx.compose.foundation.clickable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import com.sonicflow.app.feature.playlist.components.AddToPlaylistDialog
 import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.domain.model.Playlist
 import com.sonicflow.app.feature.playlist.presentation.PlaylistsScreen
@@ -28,7 +36,6 @@ import com.sonicflow.app.feature.player.components.MiniPlayer
 import com.sonicflow.app.feature.player.presentation.PlayerIntent
 import com.sonicflow.app.feature.player.presentation.PlayerState
 import com.sonicflow.app.feature.player.presentation.PlayerViewModel
-
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
@@ -144,6 +151,8 @@ fun SongsList(
     onSongClick: (Song, List<Song>) -> Unit,
     emptyMessage: String = "No songs found"
 ) {
+    var songToAddToPlaylist by remember { mutableStateOf<Song?>(null) } // ← AJOUTER
+
     if (songs.isEmpty()) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -163,16 +172,27 @@ fun SongsList(
                             PlayerIntent.ToggleFavorite(clickedSong.id)
                         )
                     },
+                    onAddToPlaylistClick = { clickedSong ->
+                        songToAddToPlaylist = clickedSong
+                    },
                     onClick = { onSongClick(song, songs) }
                 )
             }
         }
+    }
+    // Dialog pour ajouter à une playlist
+    songToAddToPlaylist?.let { song ->
+        AddToPlaylistDialog(
+            song = song,
+            onDismiss = { songToAddToPlaylist = null }
+        )
     }
 }
 @Composable
 fun SongItem(
     song: Song,
     onFavoriteClick: (Song) -> Unit = {},
+    onAddToPlaylistClick: (Song) -> Unit = {},
     onClick: () -> Unit = {}
 ) {
     ListItem(
@@ -200,7 +220,7 @@ fun SongItem(
         trailingContent = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 IconButton(
                     onClick = { onFavoriteClick(song) },
@@ -219,6 +239,36 @@ fun SongItem(
                             MaterialTheme.colorScheme.onSurfaceVariant
                         }
                     )
+                }
+
+                var showMenu by remember { mutableStateOf(false) }
+
+                Box {
+                    IconButton(
+                        onClick = { showMenu = true },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "More options"
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Add to playlist") },
+                            leadingIcon = {
+                                Icon(Icons.Default.PlaylistAdd, contentDescription = null)
+                            },
+                            onClick = {
+                                showMenu = false
+                                onAddToPlaylistClick(song)
+                            }
+                        )
+                    }
                 }
 
                 Text(

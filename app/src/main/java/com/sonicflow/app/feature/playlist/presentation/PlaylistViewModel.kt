@@ -6,6 +6,7 @@ import com.sonicflow.app.core.domain.model.Playlist
 import com.sonicflow.app.core.domain.usecase.CreatePlaylistUseCase
 import com.sonicflow.app.core.domain.usecase.DeletePlaylistUseCase
 import com.sonicflow.app.core.domain.usecase.GetAllPlaylistsUseCase
+import com.sonicflow.app.core.domain.usecase.AddSongToPlaylistUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,7 +19,8 @@ import javax.inject.Inject
 class PlaylistViewModel @Inject constructor(
     private val getAllPlaylistsUseCase: GetAllPlaylistsUseCase,
     private val createPlaylistUseCase: CreatePlaylistUseCase,
-    private val deletePlaylistUseCase: DeletePlaylistUseCase
+    private val deletePlaylistUseCase: DeletePlaylistUseCase,
+    private val addSongToPlaylistUseCase: AddSongToPlaylistUseCase
 ) : ViewModel() {
 
     private val _playlists = MutableStateFlow<List<Playlist>>(emptyList())
@@ -59,6 +61,29 @@ class PlaylistViewModel @Inject constructor(
                 Timber.d("Playlist deleted: $playlistId")
             } catch (e: Exception) {
                 Timber.e(e, "Failed to delete playlist")
+            }
+        }
+    }
+
+    fun addSongToPlaylist(playlistId: Long, songId: Long) {
+        viewModelScope.launch {
+            try {
+                addSongToPlaylistUseCase(playlistId, songId)
+                Timber.d("Song $songId added to playlist $playlistId")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to add song to playlist")
+            }
+        }
+    }
+
+    fun createPlaylistAndAddSong(name: String, songId: Long) {
+        viewModelScope.launch {
+            try {
+                val playlistId = createPlaylistUseCase(name)
+                addSongToPlaylistUseCase(playlistId, songId)
+                Timber.d("Playlist created and song added")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to create playlist and add song")
             }
         }
     }
