@@ -120,8 +120,15 @@ fun PlayerScreen(
 
                     // Contrôles secondaires
                     SecondaryControls(
+                        currentSongId = state.currentSong?.id,
+                        isFavorite = state.currentSong?.isFavorite ?: false,
                         isShuffled = state.isShuffled,
                         repeatMode = state.repeatMode,
+                        onFavoriteToggle = {
+                            state.currentSong?.let { song ->
+                                viewModel.handleIntent(PlayerIntent.ToggleFavorite(song.id))
+                            }
+                        },
                         onShuffleToggle = {
                             viewModel.handleIntent(PlayerIntent.ToggleShuffle)
                         },
@@ -294,8 +301,11 @@ fun PlayerControls(
 
 @Composable
 fun SecondaryControls(
+    currentSongId: Long?,
+    isFavorite: Boolean,
     isShuffled: Boolean,
     repeatMode: RepeatMode,
+    onFavoriteToggle: () -> Unit,
     onShuffleToggle: () -> Unit,
     onRepeatToggle: () -> Unit,
     modifier: Modifier = Modifier
@@ -319,10 +329,18 @@ fun SecondaryControls(
         }
 
         // Favorite (placeholder)
-        IconButton(onClick = { /* TODO */ }) {
+        IconButton(
+            onClick = onFavoriteToggle,
+            enabled = currentSongId != null
+        ) {
             Icon(
-                imageVector = Icons.Default.FavoriteBorder,
-                contentDescription = "Favorite"
+                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                contentDescription = "Favorite",
+                tint = if (isFavorite) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
         }
 

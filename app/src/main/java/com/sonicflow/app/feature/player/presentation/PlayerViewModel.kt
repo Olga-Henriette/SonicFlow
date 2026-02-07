@@ -257,10 +257,18 @@ class PlayerViewModel @Inject constructor(
         }
         _state.update { it.copy(repeatMode = newMode) }
     }
-
     private fun toggleFavorite(songId: Long) {
         viewModelScope.launch {
             toggleFavoriteUseCase(songId)
+
+            // Rafraîchir l'état de la chanson
+            _state.update { currentState ->
+                currentState.copy(
+                    currentSong = currentState.currentSong?.copy(
+                        isFavorite = !currentState.currentSong.isFavorite
+                    )
+                )
+            }
         }
     }
 

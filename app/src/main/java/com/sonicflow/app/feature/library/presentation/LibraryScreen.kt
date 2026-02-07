@@ -4,9 +4,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -33,11 +39,31 @@ fun LibraryScreen(
     val error by viewModel.error.collectAsState()
     val playerState by playerViewModel.state.collectAsState()
 
+    // Gestion des onglets
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = listOf("Songs", "Favorites", "Albums", "Artists")
+
+    // Filtrer les favoris
+    val favoriteSongs = songs.filter { it.isFavorite }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Library") }
-            )
+            Column {
+                TopAppBar(
+                    title = { Text("Library") }
+                )
+                TabRow(
+                    selectedTabIndex = selectedTab
+                ) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = { Text(title) }
+                        )
+                    }
+                }
+            }
         },
         bottomBar = {
             MiniPlayer(
@@ -75,22 +101,28 @@ fun LibraryScreen(
                             .padding(16.dp)
                     )
                 }
-                songs.isEmpty() -> {
-                    Text(
-                        text = "No songs found",
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
                 else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(songs) { song ->
-                            SongItem(
-                                song = song,
-                                onClick = { onSongClick(song, songs) }
-                            )
-                        }
+                    // Afficher selon l'onglet sélectionné
+                    when (selectedTab) {
+                        0 -> SongsList(
+                            songs = songs,
+                            playerViewModel = playerViewModel,
+                            onSongClick = onSongClick
+                        )
+                        1 -> SongsList(
+                            songs = favoriteSongs,
+                            playerViewModel = playerViewModel,
+                            onSongClick = onSongClick,
+                            emptyMessage = "No favorite songs yet"
+                        )
+                        2 -> Text(
+                            text = "Albums - Coming soon",
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                        3 -> Text(
+                            text = "Artists - Coming soon",
+                            modifier = Modifier.align(Alignment.Center)
+                        )
                     }
                 }
             }
@@ -98,9 +130,43 @@ fun LibraryScreen(
     }
 }
 
+// Extraire la liste en composable séparé
+@Composable
+fun SongsList(
+    songs: List<Song>,
+    playerViewModel: PlayerViewModel,
+    onSongClick: (Song, List<Song>) -> Unit,
+    emptyMessage: String = "No songs found"
+) {
+    if (songs.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = emptyMessage)
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            items(songs) { song ->
+                SongItem(
+                    song = song,
+                    onFavoriteClick = { clickedSong ->
+                        playerViewModel.handleIntent(
+                            PlayerIntent.ToggleFavorite(clickedSong.id)
+                        )
+                    },
+                    onClick = { onSongClick(song, songs) }
+                )
+            }
+        }
+    }
+}
 @Composable
 fun SongItem(
     song: Song,
+    onFavoriteClick: (Song) -> Unit = {},
     onClick: () -> Unit = {}
 ) {
     ListItem(
@@ -126,12 +192,37 @@ fun SongItem(
             )
         },
         trailingContent = {
-            Text(
-                text = song.duration.formatDuration(),
-                style = MaterialTheme.typography.bodySmall
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                IconButton(
+                    onClick = { onFavoriteClick(song) },
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = if (song.isFavorite) {
+                            Icons.Default.Favorite
+                        } else {
+                            Icons.Default.FavoriteBorder
+                        },
+                        contentDescription = if (song.isFavorite) "Remove from favorites" else "Add to favorites",
+                        tint = if (song.isFavorite) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
+
+                Text(
+                    text = song.duration.formatDuration(),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         },
         modifier = Modifier.clickable(onClick = onClick)
     )
     HorizontalDivider()
 }
+

@@ -67,7 +67,7 @@ fun AlbumArtImage(
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.size(size / 2)
                 )
-            }
+            } 
         }
     )
 }
