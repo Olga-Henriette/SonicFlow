@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.domain.usecase.AddSongToPlaylistUseCase
+import com.sonicflow.app.core.domain.usecase.RemoveSongFromPlaylistUseCase // ← VÉRIFIER CETTE LIGNE
 import com.sonicflow.app.core.domain.usecase.ToggleFavoriteUseCase
 import com.sonicflow.app.core.player.controller.PlayerController
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,7 +28,8 @@ import javax.inject.Inject
 class PlayerViewModel @Inject constructor(
     private val playerController: PlayerController,
     private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
-    private val addSongToPlaylistUseCase: AddSongToPlaylistUseCase
+    private val addSongToPlaylistUseCase: AddSongToPlaylistUseCase,
+    private val removeSongFromPlaylistUseCase: RemoveSongFromPlaylistUseCase
 ) : ViewModel() {
 
     // État unique du player
@@ -76,12 +78,12 @@ class PlayerViewModel @Inject constructor(
             is PlayerIntent.SeekTo -> playerController.seekTo(intent.position)
             is PlayerIntent.AddToQueue -> addToQueue(intent.song)
             is PlayerIntent.RemoveFromQueue -> removeFromQueue(intent.index)
-            is PlayerIntent.RemoveFromQueue -> removeFromQueue(intent.index)
             is PlayerIntent.ClearQueue -> clearQueue()
             is PlayerIntent.ToggleShuffle -> toggleShuffle()
             is PlayerIntent.ToggleRepeat -> toggleRepeat()
             is PlayerIntent.ToggleFavorite -> toggleFavorite(intent.songId)
             is PlayerIntent.AddToPlaylist -> addToPlaylist(intent.playlistId, intent.songId)
+            is PlayerIntent.RemoveFromPlaylist -> removeFromPlaylist(intent.playlistId, intent.songId)
         }
     }
 
@@ -283,6 +285,17 @@ class PlayerViewModel @Inject constructor(
                 Timber.d("Song $songId added to playlist $playlistId")
             } catch (e: Exception) {
                 Timber.e(e, "Failed to add song to playlist")
+            }
+        }
+    }
+
+    private fun removeFromPlaylist(playlistId: Long, songId: Long) {
+        viewModelScope.launch {
+            try {
+                removeSongFromPlaylistUseCase(playlistId, songId)
+                Timber.d("Song $songId removed from playlist $playlistId")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to remove song from playlist")
             }
         }
     }

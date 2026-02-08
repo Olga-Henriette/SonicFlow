@@ -22,6 +22,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.ui.graphics.Color
 import com.sonicflow.app.core.ui.components.AlbumArtImage
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sonicflow.app.core.common.formatDuration
@@ -63,12 +70,47 @@ fun LibraryScreen(
     // Filtrer les favoris
     val favoriteSongs = songs.filter { it.isFavorite }
 
+    // État de recherche
+    var searchQuery by remember { mutableStateOf("") }
+    //val debouncedQuery = rememberDebouncedValue(searchQuery, 300L)
+
+    var isSearchActive by remember { mutableStateOf(false) }
+
+    // Filtrer selon la recherche
+
+    val filteredSongs = if (searchQuery.isBlank()) {
+        songs
+    } else {
+        songs.filter {
+            it.title.contains(searchQuery, ignoreCase = true) ||
+                    it.artist.contains(searchQuery, ignoreCase = true) ||
+                    it.album.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
     Scaffold(
         topBar = {
             Column {
-                TopAppBar(
-                    title = { Text("Library") }
-                )
+                if (isSearchActive) {
+                    SearchTopBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        onCloseSearch = {
+                            isSearchActive = false
+                            searchQuery = ""
+                        }
+                    )
+                } else {
+                    TopAppBar(
+                        title = { Text("Library") },
+                        actions = {
+                            IconButton(onClick = { isSearchActive = true }) {
+                                Icon(Icons.Default.Search, "Search")
+                            }
+                        }
+                    )
+                }
+
                 TabRow(
                     selectedTabIndex = selectedTab
                 ) {
@@ -122,7 +164,7 @@ fun LibraryScreen(
                     // Afficher selon l'onglet sélectionné
                     when (selectedTab) {
                         0 -> SongsList(
-                            songs = songs,
+                            songs = filteredSongs,
                             playerViewModel = playerViewModel,
                             onSongClick = onSongClick
                         )
@@ -148,6 +190,45 @@ fun LibraryScreen(
             }
         }
     }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SearchTopBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onCloseSearch: () -> Unit
+) {
+    TopAppBar(
+        title = {
+            TextField(
+                value = query,
+                onValueChange = onQueryChange,
+                placeholder = { Text("Search songs, artists, albums...") },
+                singleLine = true,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onCloseSearch) {
+                Icon(Icons.Default.ArrowBack, "Close search")
+            }
+        },
+        actions = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(Icons.Default.Clear, "Clear")
+                }
+            }
+        }
+    )
 }
 
 // Extraire la liste en composable séparé

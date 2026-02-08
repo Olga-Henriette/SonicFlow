@@ -31,6 +31,7 @@ sealed interface PlayerIntent {
     data object ToggleRepeat : PlayerIntent
     data class ToggleFavorite(val songId: Long) : PlayerIntent
 
+    // Playlists
     data class AddToPlaylist(val playlistId: Long, val songId: Long) : PlayerIntent
-
+    data class RemoveFromPlaylist(val playlistId: Long, val songId: Long) : PlayerIntent
 }

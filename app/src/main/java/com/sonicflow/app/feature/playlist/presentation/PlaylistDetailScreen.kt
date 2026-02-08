@@ -95,8 +95,10 @@ fun PlaylistDetailScreen(
                     PlaylistSongItem(
                         song = song,
                         onRemoveClick = {
-                            // TODO: Implement remove
-                            context.showToast("Remove feature coming soon")
+                            playerViewModel.handleIntent(
+                                PlayerIntent.RemoveFromPlaylist(playlist.id, song.id)
+                            )
+                            context.showToast("Removed from ${playlist.name}")
                         },
                         onClick = {
                             val index = playlistSongs.indexOf(song)
