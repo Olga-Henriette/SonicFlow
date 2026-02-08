@@ -18,6 +18,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.filled.PlaylistAdd
+import androidx.compose.ui.platform.LocalContext
+import com.sonicflow.app.core.common.showToast
+import com.sonicflow.app.feature.playlist.presentation.PlaylistViewModel
 import com.sonicflow.app.feature.playlist.components.AddToPlaylistDialog
 import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.ui.components.AlbumArtImage
@@ -319,6 +322,11 @@ fun SecondaryControls(
     modifier: Modifier = Modifier
 ) {
     var showAddToPlaylist by remember { mutableStateOf(false) }
+    val playlistViewModel: PlaylistViewModel = hiltViewModel()
+    val playlists by playlistViewModel.playlists.collectAsState()
+    val playerViewModel: PlayerViewModel = hiltViewModel()
+    val context = LocalContext.current
+
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -370,6 +378,7 @@ fun SecondaryControls(
             )
         }
 
+        // Add to playlist
         IconButton(
             onClick = { showAddToPlaylist = true },
             enabled = currentSongId != null
@@ -379,12 +388,24 @@ fun SecondaryControls(
                 contentDescription = "Add to playlist"
             )
         }
+    }
 
-        if (showAddToPlaylist && currentSong != null) {
-            AddToPlaylistDialog(
-                song = currentSong,
-                onDismiss = { showAddToPlaylist = false }
-            )
-        }
+    if (showAddToPlaylist && currentSong != null) {
+        AddToPlaylistDialog(
+            song = currentSong,
+            playlists = playlists,
+            onDismiss = { showAddToPlaylist = false },
+            onPlaylistSelected = { playlist ->
+                playerViewModel.handleIntent(
+                    PlayerIntent.AddToPlaylist(playlist.id, currentSong.id)
+                )
+                context.showToast("Added to ${playlist.name}")
+                showAddToPlaylist = false
+            },
+            onCreateNewPlaylist = {
+                showAddToPlaylist = false
+                // TODO: Ouvrir dialog création
+            }
+        )
     }
 }

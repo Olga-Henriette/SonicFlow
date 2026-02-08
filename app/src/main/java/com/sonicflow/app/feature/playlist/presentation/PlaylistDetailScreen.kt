@@ -1,5 +1,6 @@
 package com.sonicflow.app.feature.playlist.presentation
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -9,10 +10,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.sonicflow.app.core.common.showToast
 import com.sonicflow.app.core.domain.model.Playlist
-import com.sonicflow.app.feature.library.presentation.SongItem
+import com.sonicflow.app.core.ui.components.AlbumArtImage
 import com.sonicflow.app.feature.player.presentation.PlayerIntent
 import com.sonicflow.app.feature.player.presentation.PlayerViewModel
 
@@ -24,9 +27,10 @@ fun PlaylistDetailScreen(
     modifier: Modifier = Modifier
 ) {
     val viewModel: PlaylistDetailViewModel = hiltViewModel()
-
     val playlistSongs by viewModel.getPlaylistSongsUseCase(playlist.id)
         .collectAsState(initial = emptyList())
+
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -38,7 +42,6 @@ fun PlaylistDetailScreen(
                     }
                 },
                 actions = {
-                    // Play all
                     if (playlistSongs.isNotEmpty()) {
                         IconButton(
                             onClick = {
@@ -81,22 +84,19 @@ fun PlaylistDetailScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // Header
                 item {
                     PlaylistHeader(
                         playlist = playlist,
                         songCount = playlistSongs.size
                     )
-                 }
+                }
 
-                // Songs
                 items(playlistSongs) { song ->
-                    SongItem(
+                    PlaylistSongItem(
                         song = song,
-                        onFavoriteClick = { clickedSong ->
-                            playerViewModel.handleIntent(
-                                PlayerIntent.ToggleFavorite(clickedSong.id)
-                            )
+                        onRemoveClick = {
+                            // TODO: Implement remove
+                            context.showToast("Remove feature coming soon")
                         },
                         onClick = {
                             val index = playlistSongs.indexOf(song)
@@ -141,5 +141,46 @@ fun PlaylistHeader(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+    HorizontalDivider()
+}
+
+@Composable
+fun PlaylistSongItem(
+    song: com.sonicflow.app.core.domain.model.Song,
+    onRemoveClick: () -> Unit,
+    onClick: () -> Unit
+) {
+    ListItem(
+        headlineContent = {
+            Text(
+                text = song.title,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+        },
+        supportingContent = {
+            Text(
+                text = "${song.artist} • ${song.album}",
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+        },
+        leadingContent = {
+            AlbumArtImage(
+                albumId = song.albumId,
+                contentDescription = song.album,
+                size = 56.dp
+            )
+        },
+        trailingContent = {
+            IconButton(onClick = onRemoveClick) {
+                Icon(
+                    imageVector = Icons.Default.Remove,
+                    contentDescription = "Remove from playlist"
+                )
+            }
+        },
+        modifier = Modifier.clickable(onClick = onClick)
+    )
     HorizontalDivider()
 }

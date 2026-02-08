@@ -28,6 +28,9 @@ import com.sonicflow.app.core.common.formatDuration
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.ui.platform.LocalContext
+import com.sonicflow.app.core.common.showToast
 import com.sonicflow.app.feature.playlist.components.AddToPlaylistDialog
 import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.domain.model.Playlist
@@ -36,6 +39,10 @@ import com.sonicflow.app.feature.player.components.MiniPlayer
 import com.sonicflow.app.feature.player.presentation.PlayerIntent
 import com.sonicflow.app.feature.player.presentation.PlayerState
 import com.sonicflow.app.feature.player.presentation.PlayerViewModel
+import com.sonicflow.app.feature.playlist.components.AddToPlaylistDialog
+import com.sonicflow.app.feature.playlist.presentation.CreatePlaylistDialog
+import com.sonicflow.app.feature.playlist.presentation.PlaylistViewModel
+
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
@@ -148,10 +155,15 @@ fun LibraryScreen(
 fun SongsList(
     songs: List<Song>,
     playerViewModel: PlayerViewModel,
+    playlistViewModel: PlaylistViewModel = hiltViewModel(),
     onSongClick: (Song, List<Song>) -> Unit,
     emptyMessage: String = "No songs found"
 ) {
-    var songToAddToPlaylist by remember { mutableStateOf<Song?>(null) } // ← AJOUTER
+    val playlists by playlistViewModel.playlists.collectAsState()
+    val context = LocalContext.current
+
+    var songToAddToPlaylist by remember { mutableStateOf<Song?>(null) }
+    var showCreatePlaylistDialog by remember { mutableStateOf(false) }
 
     if (songs.isEmpty()) {
         Box(
@@ -184,7 +196,33 @@ fun SongsList(
     songToAddToPlaylist?.let { song ->
         AddToPlaylistDialog(
             song = song,
-            onDismiss = { songToAddToPlaylist = null }
+            playlists = playlists,
+            onDismiss = { songToAddToPlaylist = null },
+            onPlaylistSelected = { playlist ->
+                playerViewModel.handleIntent(
+                    PlayerIntent.AddToPlaylist(
+                        playlistId = playlist.id,
+                        songId = song.id
+                    )
+                )
+                context.showToast("Added to ${playlist.name}")
+                songToAddToPlaylist = null
+            },
+            onCreateNewPlaylist = {
+                songToAddToPlaylist = null
+                showCreatePlaylistDialog = true
+            }
+        )
+    }
+
+    // Dialog création rapide de playlist
+    if (showCreatePlaylistDialog) {
+        CreatePlaylistDialog(
+            onDismiss = { showCreatePlaylistDialog = false },
+            onConfirm = { name ->
+                playlistViewModel.createPlaylist(name)
+                showCreatePlaylistDialog = false
+            }
         )
     }
 }
@@ -193,6 +231,7 @@ fun SongItem(
     song: Song,
     onFavoriteClick: (Song) -> Unit = {},
     onAddToPlaylistClick: (Song) -> Unit = {},
+    onMoreClick: (Song) -> Unit = {},
     onClick: () -> Unit = {}
 ) {
     ListItem(
@@ -274,6 +313,16 @@ fun SongItem(
                 Text(
                     text = song.duration.formatDuration(),
                     style = MaterialTheme.typography.bodySmall
+                )
+            }
+            // More (menu)
+            IconButton(
+                onClick = { onMoreClick(song) },
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More options"
                 )
             }
         },

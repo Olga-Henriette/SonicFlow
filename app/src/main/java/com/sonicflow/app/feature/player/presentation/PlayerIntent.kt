@@ -30,4 +30,7 @@ sealed interface PlayerIntent {
     data object ToggleShuffle : PlayerIntent
     data object ToggleRepeat : PlayerIntent
     data class ToggleFavorite(val songId: Long) : PlayerIntent
+
+    data class AddToPlaylist(val playlistId: Long, val songId: Long) : PlayerIntent
+
 }
