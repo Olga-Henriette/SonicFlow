@@ -39,6 +39,9 @@ class PlayerViewModel @Inject constructor(
     // Job pour mettre à jour la position
     private var positionUpdateJob: Job? = null
 
+    private var _originalQueue: List<Song> = emptyList()
+    private var _originalIndex: Int = 0
+
     init {
         // Observer les changements du PlayerController
         observePlayerController()
@@ -247,14 +250,38 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun clearQueue() {
-        _state.update { it.copy(queue = emptyList()) }
-    }
+        playerController.pause()
+        playerController.release()
 
+        _state.update {
+            it.copy(
+                queue = emptyList(),
+                currentSong = null,
+                currentIndex = 0,
+                isPlaying = false,
+                isShuffled = false
+            )
+        }
+
+        _originalQueue = emptyList()
+        _originalIndex = 0
+
+        Timber.d("Queue cleared")
+    }
     private fun toggleShuffle() {
-        _state.update { it.copy(isShuffled = !it.isShuffled) }
-        // TODO: Implémenter le shuffle de la queue
-    }
+        val currentState = _state.value
+        val newShuffleState = !currentState.isShuffled
 
+        if (newShuffleState) {
+            // Activer shuffle : mélanger la queue
+            shuffleQueue()
+        } else {
+            // Désactiver shuffle : restaurer l'ordre original
+            unshuffleQueue()
+        }
+
+        _state.update { it.copy(isShuffled = newShuffleState) }
+    }
     private fun toggleRepeat() {
         val newMode = when (_state.value.repeatMode) {
             RepeatMode.OFF -> RepeatMode.ALL
@@ -262,6 +289,63 @@ class PlayerViewModel @Inject constructor(
             RepeatMode.ONE -> RepeatMode.OFF
         }
         _state.update { it.copy(repeatMode = newMode) }
+    }
+    private fun shuffleQueue() {
+        val currentState = _state.value
+        if (currentState.queue.isEmpty()) return
+
+        val currentSong = currentState.queue.getOrNull(currentState.currentIndex)
+        val otherSongs = currentState.queue.toMutableList().apply {
+            removeAt(currentState.currentIndex)
+        }.shuffled()
+
+        val newQueue = if (currentSong != null) {
+            listOf(currentSong) + otherSongs
+        } else {
+            otherSongs
+        }
+
+        // Sauvegarder l'ordre original pour pouvoir le restaurer
+        _originalQueue = currentState.queue
+        _originalIndex = currentState.currentIndex
+
+        _state.update {
+            it.copy(
+                queue = newQueue,
+                currentIndex = 0 // La chanson actuelle est maintenant en position 0
+            )
+        }
+
+        // Mettre à jour ExoPlayer avec la nouvelle queue
+        playerController.setQueue(newQueue, 0)
+
+        Timber.d("Queue shuffled: ${newQueue.size} songs")
+    }
+    private fun unshuffleQueue() {
+        if (_originalQueue.isEmpty()) return
+
+        val currentState = _state.value
+        val currentSong = currentState.currentSong
+
+        // Trouver l'index de la chanson actuelle dans la queue originale
+        val newIndex = _originalQueue.indexOfFirst { it.id == currentSong?.id }
+            .takeIf { it >= 0 } ?: _originalIndex
+
+        _state.update {
+            it.copy(
+                queue = _originalQueue,
+                currentIndex = newIndex
+            )
+        }
+
+        // Mettre à jour ExoPlayer
+        playerController.setQueue(_originalQueue, newIndex)
+
+        Timber.d("Queue unshuffled, back to original order")
+
+        // Réinitialiser
+        _originalQueue = emptyList()
+        _originalIndex = 0
     }
     private fun toggleFavorite(songId: Long) {
         viewModelScope.launch {

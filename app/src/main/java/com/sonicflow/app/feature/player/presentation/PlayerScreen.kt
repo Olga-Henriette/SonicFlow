@@ -28,6 +28,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import com.sonicflow.app.core.common.showToast
 import com.sonicflow.app.core.common.formatDuration
 import kotlin.math.roundToInt
 
@@ -38,7 +41,15 @@ fun PlayerScreen(
     onQueueClick: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
 
+    // Observer les changements de shuffle
+    LaunchedEffect(state.isShuffled) {
+        if (state.isShuffled) {
+            context.showToast("Shuffle on")
+        }
+    }
+    
     Scaffold(
         topBar = {
             TopAppBar(
@@ -346,6 +357,11 @@ fun SecondaryControls(
                     MaterialTheme.colorScheme.primary
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = if (isShuffled) {
+                    Modifier.size(28.dp)
+                } else {
+                    Modifier.size(24.dp)
                 }
             )
         }
