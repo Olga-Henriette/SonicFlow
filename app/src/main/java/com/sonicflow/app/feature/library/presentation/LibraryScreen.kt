@@ -35,12 +35,14 @@ import com.sonicflow.app.core.common.formatDuration
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.ui.platform.LocalContext
 import com.sonicflow.app.core.common.showToast
 import com.sonicflow.app.feature.playlist.components.AddToPlaylistDialog
 import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.domain.model.Playlist
+import com.sonicflow.app.core.domain.model.Album
 import com.sonicflow.app.feature.playlist.presentation.PlaylistsScreen
 import com.sonicflow.app.feature.player.components.MiniPlayer
 import com.sonicflow.app.feature.player.presentation.PlayerIntent
@@ -54,8 +56,11 @@ import com.sonicflow.app.feature.playlist.presentation.PlaylistViewModel
 fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
     playerViewModel: PlayerViewModel = hiltViewModel(),
+    initialTab: Int = 0,
+    onTabChanged: (Int) -> Unit = {},
     onSongClick: (Song, List<Song>) -> Unit = { _, _ -> },
     onPlaylistClick: (Playlist) -> Unit = {},
+    onAlbumClick: (Album) -> Unit = {},
     onMiniPlayerClick: () -> Unit = {}
 ) {
     val songs by viewModel.songs.collectAsState()
@@ -64,8 +69,12 @@ fun LibraryScreen(
     val playerState by playerViewModel.state.collectAsState()
 
     // Gestion des onglets
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by remember(initialTab) { mutableIntStateOf(initialTab) }
     val tabs = listOf("Songs", "Favorites", "Playlists","Albums", "Artists")
+
+    LaunchedEffect(selectedTab) {
+        onTabChanged(selectedTab)
+    }
 
     // Filtrer les favoris
     val favoriteSongs = songs.filter { it.isFavorite }
@@ -177,9 +186,8 @@ fun LibraryScreen(
                         2 -> PlaylistsScreen(
                             onPlaylistClick = onPlaylistClick
                         )
-                        3 -> Text(
-                            text = "Albums - Coming soon",
-                            modifier = Modifier.align(Alignment.Center)
+                        3 -> AlbumsScreen(
+                            onAlbumClick = onAlbumClick
                         )
                         4 -> Text(
                             text = "Artists - Coming soon",

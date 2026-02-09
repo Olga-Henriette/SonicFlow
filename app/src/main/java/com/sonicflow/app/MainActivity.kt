@@ -23,7 +23,9 @@ import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.domain.model.Playlist
 import com.sonicflow.app.core.domain.usecase.GetPlaylistSongsUseCase
 import com.sonicflow.app.core.player.service.MusicService
-import com.sonicflow.app.core.ui.theme.SonicFlowTheme
+import com.sonicflow.app.  core.ui.theme.SonicFlowTheme
+import com.sonicflow.app.core.domain.model.Album
+import com.sonicflow.app.feature.library.presentation.AlbumDetailScreen
 import com.sonicflow.app.feature.playlist.presentation.PlaylistDetailScreen
 import com.sonicflow.app.feature.library.presentation.LibraryScreen
 import com.sonicflow.app.feature.player.presentation.PlayerIntent
@@ -119,18 +121,20 @@ sealed class Screen {
     data object Library : Screen()
     data object Player : Screen()
     data class PlaylistDetail(val playlist: Playlist) : Screen()
+    data class AlbumDetail(val album: Album) : Screen()
 }
-
-
 @Composable
 fun AppNavigation() {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Library) }
+    var selectedLibraryTab by remember { mutableIntStateOf(0) }
     val playerViewModel: PlayerViewModel = hiltViewModel()
 
     when (val screen = currentScreen) {
         Screen.Library -> {
             LibraryScreen(
                 playerViewModel = playerViewModel,
+                initialTab = selectedLibraryTab,
+                onTabChanged = { newTab -> selectedLibraryTab = newTab },
                 onSongClick = { song, allSongs ->
                     val startIndex = allSongs.indexOf(song)
                     playerViewModel.handleIntent(
@@ -142,7 +146,12 @@ fun AppNavigation() {
                     currentScreen = Screen.Player
                 },
                 onPlaylistClick = { playlist ->
+                    selectedLibraryTab = 2
                     currentScreen = Screen.PlaylistDetail(playlist)
+                },
+                onAlbumClick = { album ->
+                    selectedLibraryTab = 3
+                    currentScreen = Screen.AlbumDetail(album)
                 },
                 onMiniPlayerClick = {
                     currentScreen = Screen.Player
@@ -163,6 +172,18 @@ fun AppNavigation() {
                 playerViewModel = playerViewModel,
                 onNavigateBack = {
                     currentScreen = Screen.Library
+                }
+            )
+        }
+        is Screen.AlbumDetail -> {
+            AlbumDetailScreen(
+                album = screen.album,
+                playerViewModel = playerViewModel,
+                onNavigateBack = {
+                    currentScreen = Screen.Library
+                },
+                onMiniPlayerClick = {
+                    currentScreen = Screen.Player
                 }
             )
         }

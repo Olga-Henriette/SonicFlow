@@ -32,6 +32,9 @@ fun PlaylistDetailScreen(
 
     val context = LocalContext.current
 
+    // État pour le dialog de confirmation
+    var songToRemove by remember { mutableStateOf<com.sonicflow.app.core.domain.model.Song?>(null) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -91,14 +94,11 @@ fun PlaylistDetailScreen(
                     )
                 }
 
-                items(playlistSongs) { song ->
+                items(playlistSongs, key = { it.id }) { song ->
                     PlaylistSongItem(
                         song = song,
                         onRemoveClick = {
-                            playerViewModel.handleIntent(
-                                PlayerIntent.RemoveFromPlaylist(playlist.id, song.id)
-                            )
-                            context.showToast("Removed from ${playlist.name}")
+                            songToRemove = song
                         },
                         onClick = {
                             val index = playlistSongs.indexOf(song)
@@ -110,6 +110,32 @@ fun PlaylistDetailScreen(
                 }
             }
         }
+    }
+    // Dialog de confirmation
+    songToRemove?.let { song ->
+        AlertDialog(
+            onDismissRequest = { songToRemove = null },
+            title = { Text("Remove Song") },
+            text = { Text("Remove \"${song.title}\" from ${playlist.name}?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        playerViewModel.handleIntent(
+                            PlayerIntent.RemoveFromPlaylist(playlist.id, song.id)
+                        )
+                        context.showToast("Removed from ${playlist.name}")
+                        songToRemove = null
+                    }
+                ) {
+                    Text("Remove")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { songToRemove = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

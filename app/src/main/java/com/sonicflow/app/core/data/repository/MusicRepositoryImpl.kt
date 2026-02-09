@@ -1,4 +1,3 @@
-// core/data/repository/MusicRepositoryImpl.kt
 package com.sonicflow.app.core.data.repository
 
 import com.sonicflow.app.core.common.Resource
@@ -37,7 +36,7 @@ class MusicRepositoryImpl @Inject constructor(
     private val playHistoryDao: PlayHistoryDao
 ) : MusicRepository {
 
-    // ==================== SONGS ====================
+    // SONGS
 
     override fun getAllSongs(): Flow<Resource<List<Song>>> = flow {
         emit(Resource.Loading())
@@ -59,7 +58,6 @@ class MusicRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getSongById(id: Long): Song? {
-        // Pour l'instant, on scan toutes les chansons (optimisable plus tard)
         var foundSong: Song? = null
         getAllSongs().collect { resource ->
             if (resource is Resource.Success) {
@@ -82,7 +80,7 @@ class MusicRepositoryImpl @Inject constructor(
         }
     }
 
-    // ==================== ALBUMS ====================
+    // ALBUMS
 
     override fun getAllAlbums(): Flow<Resource<List<Album>>> = flow {
         emit(Resource.Loading())
@@ -116,7 +114,7 @@ class MusicRepositoryImpl @Inject constructor(
         }
     }
 
-    // ==================== ARTISTS ====================
+    // ARTISTS
 
     override fun getAllArtists(): Flow<Resource<List<Artist>>> = flow {
         emit(Resource.Loading())
@@ -161,15 +159,12 @@ class MusicRepositoryImpl @Inject constructor(
         }
     }
 
-    // ==================== PLAYLISTS ====================
-
+    // PLAYLISTS
     override fun getAllPlaylists(): Flow<List<Playlist>> {
-        return playlistDao.getAllPlaylists().map { entities ->
-            entities.map { entity ->
-                val songCount = playlistDao.getPlaylistSongCount(entity.id)
-                entity.toDomain(songCount)
+        return playlistDao.getAllPlaylistsWithSongCount()
+            .map { playlistsWithCount ->
+                playlistsWithCount.map { it.playlist.toDomain(it.songCount) }
             }
-        }
     }
 
     override suspend fun createPlaylist(name: String): Long {
@@ -212,7 +207,7 @@ class MusicRepositoryImpl @Inject constructor(
         }
     }
 
-    // ==================== FAVORITES ====================
+    // FAVORITES
 
     override suspend fun toggleFavorite(songId: Long) {
         favoriteDao.toggleFavorite(songId)
@@ -229,7 +224,7 @@ class MusicRepositoryImpl @Inject constructor(
         }
     }
 
-    // ==================== RECENT / STATS ====================
+    // RECENT / STATS
 
     override suspend fun incrementPlayCount(songId: Long) {
         playHistoryDao.incrementPlayCount(songId)

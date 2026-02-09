@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Embedded
 import com.sonicflow.app.core.data.local.entity.PlaylistEntity
 import com.sonicflow.app.core.data.local.entity.PlaylistSongCrossRef
 import kotlinx.coroutines.flow.Flow
@@ -45,6 +46,20 @@ interface PlaylistDao {
 
     @Query("SELECT COUNT(*) FROM playlist_song_cross_ref WHERE playlistId = :playlistId")
     suspend fun getPlaylistSongCount(playlistId: Long): Int
+
+    @Query("""
+        SELECT p.*, COUNT(ps.songId) as songCount 
+        FROM playlists p 
+        LEFT JOIN playlist_song_cross_ref ps ON p.id = ps.playlistId 
+        GROUP BY p.id 
+        ORDER BY p.dateModified DESC
+    """)
+    fun getAllPlaylistsWithSongCount(): Flow<List<PlaylistWithSongCount>>
+
+    data class PlaylistWithSongCount(
+        @Embedded val playlist: PlaylistEntity,
+        val songCount: Int
+    )
 
     @Query("UPDATE playlist_song_cross_ref SET position = :position WHERE playlistId = :playlistId AND songId = :songId")
     suspend fun updateSongPosition(playlistId: Long, songId: Long, position: Int)
