@@ -25,6 +25,7 @@ import com.sonicflow.app.core.domain.usecase.GetPlaylistSongsUseCase
 import com.sonicflow.app.core.player.service.MusicService
 import com.sonicflow.app.  core.ui.theme.SonicFlowTheme
 import com.sonicflow.app.core.domain.model.Album
+import com.sonicflow.app.feature.player.presentation.QueueScreen
 import com.sonicflow.app.feature.library.presentation.AlbumDetailScreen
 import com.sonicflow.app.feature.playlist.presentation.PlaylistDetailScreen
 import com.sonicflow.app.feature.library.presentation.LibraryScreen
@@ -122,6 +123,7 @@ sealed class Screen {
     data object Player : Screen()
     data class PlaylistDetail(val playlist: Playlist) : Screen()
     data class AlbumDetail(val album: Album) : Screen()
+    data object Queue : Screen()
 }
 @Composable
 fun AppNavigation() {
@@ -163,6 +165,9 @@ fun AppNavigation() {
                 viewModel = playerViewModel,
                 onNavigateBack = {
                     currentScreen = Screen.Library
+                },
+                onQueueClick = {
+                    currentScreen = Screen.Queue
                 }
             )
         }
@@ -183,6 +188,14 @@ fun AppNavigation() {
                     currentScreen = Screen.Library
                 },
                 onMiniPlayerClick = {
+                    currentScreen = Screen.Player
+                }
+            )
+        }
+        Screen.Queue -> {
+            QueueScreen(
+                viewModel = playerViewModel,
+                onNavigateBack = {
                     currentScreen = Screen.Player
                 }
             )

@@ -34,7 +34,8 @@ import kotlin.math.roundToInt
 @Composable
 fun PlayerScreen(
     viewModel: PlayerViewModel = hiltViewModel(),
-    onNavigateBack: () -> Unit = {}
+    onNavigateBack: () -> Unit = {},
+    onQueueClick: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
 
@@ -134,6 +135,7 @@ fun PlayerScreen(
                         isFavorite = state.currentSong?.isFavorite ?: false,
                         isShuffled = state.isShuffled,
                         repeatMode = state.repeatMode,
+                        queueSize = state.queue.size,
                         onFavoriteToggle = {
                             state.currentSong?.let { song ->
                                 viewModel.handleIntent(PlayerIntent.ToggleFavorite(song.id))
@@ -144,7 +146,8 @@ fun PlayerScreen(
                         },
                         onRepeatToggle = {
                             viewModel.handleIntent(PlayerIntent.ToggleRepeat)
-                        }
+                        },
+                        onQueueClick = onQueueClick
                     )
 
                     Spacer(modifier = Modifier.height(32.dp))
@@ -316,9 +319,11 @@ fun SecondaryControls(
     isFavorite: Boolean,
     isShuffled: Boolean,
     repeatMode: RepeatMode,
+    queueSize: Int = 0,
     onFavoriteToggle: () -> Unit,
     onShuffleToggle: () -> Unit,
     onRepeatToggle: () -> Unit,
+    onQueueClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showAddToPlaylist by remember { mutableStateOf(false) }
@@ -387,6 +392,24 @@ fun SecondaryControls(
                 imageVector = Icons.Default.PlaylistAdd,
                 contentDescription = "Add to playlist"
             )
+        }
+
+        // Queue ⬇️ MODIFIER
+        BadgedBox(
+            badge = {
+                if (queueSize > 0) {
+                    Badge {
+                        Text(queueSize.toString())
+                    }
+                }
+            }
+        ) {
+            IconButton(onClick = onQueueClick) {
+                Icon(
+                    imageVector = Icons.Default.QueueMusic,
+                    contentDescription = "Queue"
+                )
+            }
         }
     }
 
