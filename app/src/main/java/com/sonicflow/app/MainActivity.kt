@@ -25,6 +25,9 @@ import com.sonicflow.app.core.domain.usecase.GetPlaylistSongsUseCase
 import com.sonicflow.app.core.player.service.MusicService
 import com.sonicflow.app.  core.ui.theme.SonicFlowTheme
 import com.sonicflow.app.core.domain.model.Album
+import com.sonicflow.app.core.domain.model.Artist
+import com.sonicflow.app.feature.library.presentation.ArtistDetailScreen
+import com.sonicflow.app.feature.library.presentation.ArtistsScreen
 import com.sonicflow.app.feature.player.presentation.QueueScreen
 import com.sonicflow.app.feature.library.presentation.AlbumDetailScreen
 import com.sonicflow.app.feature.playlist.presentation.PlaylistDetailScreen
@@ -123,6 +126,7 @@ sealed class Screen {
     data object Player : Screen()
     data class PlaylistDetail(val playlist: Playlist) : Screen()
     data class AlbumDetail(val album: Album) : Screen()
+    data class ArtistDetail(val artist: Artist) : Screen()
     data object Queue : Screen()
 }
 @Composable
@@ -155,6 +159,9 @@ fun AppNavigation() {
                     selectedLibraryTab = 3
                     currentScreen = Screen.AlbumDetail(album)
                 },
+                onArtistClick = { artist ->
+                    currentScreen = Screen.ArtistDetail(artist)
+                },
                 onMiniPlayerClick = {
                     currentScreen = Screen.Player
                 }
@@ -171,6 +178,16 @@ fun AppNavigation() {
                 }
             )
         }
+
+        Screen.Queue -> {
+            QueueScreen(
+                viewModel = playerViewModel,
+                onNavigateBack = {
+                    currentScreen = Screen.Player
+                }
+            )
+        }
+
         is Screen.PlaylistDetail -> {
             PlaylistDetailScreen(
                 playlist = screen.playlist,
@@ -192,11 +209,12 @@ fun AppNavigation() {
                 }
             )
         }
-        Screen.Queue -> {
-            QueueScreen(
-                viewModel = playerViewModel,
+        is Screen.ArtistDetail -> {
+            ArtistDetailScreen(
+                artist = screen.artist,
+                playerViewModel = playerViewModel,
                 onNavigateBack = {
-                    currentScreen = Screen.Player
+                    currentScreen = Screen.Library
                 }
             )
         }

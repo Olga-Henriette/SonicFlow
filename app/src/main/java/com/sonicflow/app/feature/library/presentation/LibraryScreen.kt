@@ -43,6 +43,7 @@ import com.sonicflow.app.feature.playlist.components.AddToPlaylistDialog
 import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.domain.model.Playlist
 import com.sonicflow.app.core.domain.model.Album
+import com.sonicflow.app.core.domain.model.Artist
 import com.sonicflow.app.feature.playlist.presentation.PlaylistsScreen
 import com.sonicflow.app.feature.player.components.MiniPlayer
 import com.sonicflow.app.feature.player.presentation.PlayerIntent
@@ -61,6 +62,7 @@ fun LibraryScreen(
     onSongClick: (Song, List<Song>) -> Unit = { _, _ -> },
     onPlaylistClick: (Playlist) -> Unit = {},
     onAlbumClick: (Album) -> Unit = {},
+    onArtistClick: (Artist) -> Unit = {},
     onMiniPlayerClick: () -> Unit = {}
 ) {
     val songs by viewModel.songs.collectAsState()
@@ -189,9 +191,8 @@ fun LibraryScreen(
                         3 -> AlbumsScreen(
                             onAlbumClick = onAlbumClick
                         )
-                        4 -> Text(
-                            text = "Artists - Coming soon",
-                            modifier = Modifier.align(Alignment.Center)
+                        4 -> ArtistsScreen(
+                            onArtistClick = onArtistClick
                         )
                     }
                 }
