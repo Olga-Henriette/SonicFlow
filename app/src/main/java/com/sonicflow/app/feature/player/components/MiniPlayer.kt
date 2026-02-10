@@ -1,94 +1,136 @@
 package com.sonicflow.app.feature.player.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.ui.components.AlbumArtImage
+import com.sonicflow.app.core.common.AlbumPalette
 
 @Composable
 fun MiniPlayer(
     currentSong: Song?,
     isPlaying: Boolean,
-    currentPosition: Long = 0L,
-    duration: Long = 0L,
+    currentPosition: Long,
+    duration: Long,
+    albumPalette: AlbumPalette? = null, // 🎨 Palette pour la barre de progression
     onPlayPauseClick: () -> Unit,
     onNextClick: () -> Unit,
     onMiniPlayerClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Ne rien afficher si aucune chanson
     if (currentSong == null) return
 
-    Column(modifier = modifier.fillMaxWidth()) {
-        // Barre de progression fine
-        if (duration > 0) {
-            LinearProgressIndicator(
-                progress = { (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(2.dp),
-            )
-        }
+    // 🎨 Animation de la couleur de la barre de progression
+    val progressBarColor by animateColorAsState(
+        targetValue = albumPalette?.primary ?: MaterialTheme.colorScheme.primary,
+        animationSpec = tween(durationMillis = 600),
+        label = "progress bar color"
+    )
 
-        Surface(
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+    ) {
+        // Barre de progression
+        val progress = if (duration > 0) {
+            (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+        } else 0f
+
+        // Animation fluide de la progression
+        val animatedProgress by animateFloatAsState(
+            targetValue = progress,
+            animationSpec = tween(
+                durationMillis = 100,
+                easing = LinearEasing
+            ),
+            label = "progress"
+        )
+
+        LinearProgressIndicator(
+            progress = { animatedProgress },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
-                .clickable(onClick = onMiniPlayerClick),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            tonalElevation = 3.dp
+                .height(3.dp),
+            color = progressBarColor, // 🎨 Couleur dynamique
+            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+        )
+
+        // Contenu du mini-player
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onMiniPlayerClick)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
+            // Artwork
+            AlbumArtImage(
+                albumId = currentSong.albumId,
+                contentDescription = currentSong.album,
+                size = 48.dp,
+                modifier = Modifier.padding(end = 12.dp)
+            )
+
+            // Infos chanson
+            Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 8.dp),
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            ) {
+                Text(
+                    text = currentSong.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = currentSong.artist,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // Contrôles
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AlbumArtImage(
-                    albumId = currentSong.albumId,
-                    contentDescription = currentSong.album,
-                    size = 48.dp
-                )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                // Song info
-                Column(
-                    modifier = Modifier.weight(1f)
+                IconButton(
+                    onClick = onPlayPauseClick,
+                    modifier = Modifier.size(40.dp)
                 ) {
-                    Text(
-                        text = currentSong.title,
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = currentSong.artist,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                // Controls
-                IconButton(onClick = onPlayPauseClick) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (isPlaying) "Pause" else "Play"
                     )
                 }
 
-                IconButton(onClick = onNextClick) {
+                IconButton(
+                    onClick = onNextClick,
+                    modifier = Modifier.size(40.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
                         contentDescription = "Next"

@@ -2,54 +2,91 @@ package com.sonicflow.app.feature.player.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.filled.PlaylistAdd
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import com.sonicflow.app.core.common.showToast
-import com.sonicflow.app.feature.playlist.presentation.PlaylistViewModel
-import com.sonicflow.app.feature.playlist.components.AddToPlaylistDialog
-import com.sonicflow.app.core.domain.model.Song
-import com.sonicflow.app.core.ui.components.AlbumArtImage
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.platform.LocalContext
+import com.sonicflow.app.feature.playlist.presentation.PlaylistViewModel
+import com.sonicflow.app.feature.playlist.components.AddToPlaylistDialog
+import com.sonicflow.app.core.common.AlbumPalette
+import com.sonicflow.app.core.common.PaletteExtractor
+import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.common.showToast
 import com.sonicflow.app.core.common.formatDuration
-import kotlin.math.roundToInt
+import com.sonicflow.app.core.ui.components.AlbumArtImage
+import androidx.compose.material.icons.filled.PlaylistAdd
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.hilt.navigation.compose.hiltViewModel
+import kotlin.math.absoluteValue
+import kotlinx.coroutines.launch
+import coil3.imageLoader
+import timber.log.Timber
 
 @Composable
 fun PlayerScreen(
     viewModel: PlayerViewModel = hiltViewModel(),
+    albumPalette: AlbumPalette? = null,
+    onAlbumPaletteChange: (AlbumPalette?) -> Unit = {},
     onNavigateBack: () -> Unit = {},
     onQueueClick: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
-    // Observer les changements de shuffle
+    var localPalette by remember { mutableStateOf<AlbumPalette?>(null) }
+
+    val animatedBackgroundColor by animateColorAsState(
+        targetValue = (localPalette ?: albumPalette)?.background
+            ?: MaterialTheme.colorScheme.primaryContainer,
+        animationSpec = tween(durationMillis = 600),
+        label = "background color"
+    )
+
+    LaunchedEffect(state.currentSong?.albumId) {
+        state.currentSong?.albumId?.let { albumId ->
+            scope.launch {
+                val palette = PaletteExtractor.extractPalette(
+                    context = context,
+                    imageLoader = context.imageLoader,
+                    albumId = albumId
+                )
+                localPalette = palette
+                onAlbumPaletteChange(palette)
+                Timber.d("🎨 Palette extracted: ${palette?.primary}")
+            }
+        }
+    }
+
     LaunchedEffect(state.isShuffled) {
         if (state.isShuffled) {
             context.showToast("Shuffle on")
         }
     }
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -72,7 +109,7 @@ fun PlayerScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.primaryContainer,
+                            animatedBackgroundColor,
                             MaterialTheme.colorScheme.background
                         )
                     )
@@ -81,10 +118,8 @@ fun PlayerScreen(
         ) {
 
             if (state.currentSong == null) {
-                // Aucune chanson en lecture
                 NoSongPlaying(modifier = Modifier.align(Alignment.Center))
             } else {
-                // Afficher le player
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -94,9 +129,14 @@ fun PlayerScreen(
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    // Artwork (pour l'instant un placeholder)
                     AlbumArtwork(
                         albumId = state.currentSong?.albumId ?: 0L,
+                        onSwipeLeft = {
+                            viewModel.handleIntent(PlayerIntent.Next)
+                        },
+                        onSwipeRight = {
+                            viewModel.handleIntent(PlayerIntent.Previous)
+                        },
                         modifier = Modifier
                             .size(320.dp)
                             .weight(1f, fill = false)
@@ -104,7 +144,6 @@ fun PlayerScreen(
 
                     Spacer(modifier = Modifier.height(48.dp))
 
-                    // Infos chanson
                     SongInfo(
                         title = state.currentSong?.title ?: "Unknown",
                         artist = state.currentSong?.artist ?: "Unknown Artist"
@@ -112,7 +151,6 @@ fun PlayerScreen(
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    // Barre de progression
                     ProgressBar(
                         currentPosition = state.currentPosition,
                         duration = state.duration,
@@ -123,7 +161,6 @@ fun PlayerScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Contrôles principaux
                     PlayerControls(
                         isPlaying = state.isPlaying,
                         onPlayPause = {
@@ -139,7 +176,6 @@ fun PlayerScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Contrôles secondaires
                     SecondaryControls(
                         currentSongId = state.currentSong?.id,
                         currentSong = state.currentSong,
@@ -192,14 +228,115 @@ fun NoSongPlaying(modifier: Modifier = Modifier) {
 @Composable
 fun AlbumArtwork(
     albumId: Long,
+    onSwipeLeft: () -> Unit = {},
+    onSwipeRight: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    AlbumArtImage(
-        albumId = albumId,
-        contentDescription = "Album artwork",
-        modifier = modifier.aspectRatio(1f),
-        size = 320.dp
-    )
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
+
+    val animatedOffsetX = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+
+    val swipeThreshold = 150.dp.value
+
+    LaunchedEffect(offsetX) {
+        if (!isDragging) {
+            animatedOffsetX.animateTo(
+                targetValue = offsetX,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            )
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragStart = {
+                        isDragging = true
+                    },
+                    onDragEnd = {
+                        isDragging = false
+
+                        if (offsetX.absoluteValue > swipeThreshold) {
+                            if (offsetX > 0) {
+                                onSwipeRight()
+                            } else {
+                                onSwipeLeft()
+                            }
+                        }
+
+                        scope.launch {
+                            offsetX = 0f
+                        }
+                    },
+                    onDragCancel = {
+                        isDragging = false
+                        scope.launch {
+                            offsetX = 0f
+                        }
+                    },
+                    onHorizontalDrag = { _, dragAmount ->
+                        val newOffset = (offsetX + dragAmount).coerceIn(-300f, 300f)
+                        offsetX = newOffset
+                        scope.launch {
+                            animatedOffsetX.snapTo(newOffset)
+                        }
+                    }
+                )
+            }
+            .graphicsLayer {
+                translationX = animatedOffsetX.value
+                rotationZ = (animatedOffsetX.value / 30f).coerceIn(-10f, 10f)
+                alpha = 1f - (animatedOffsetX.value.absoluteValue / 600f).coerceIn(0f, 0.5f)
+            }
+    ) {
+        AlbumArtImage(
+            albumId = albumId,
+            contentDescription = "Album artwork",
+            modifier = Modifier.fillMaxSize(),
+            size = 320.dp
+        )
+
+        if (isDragging && offsetX.absoluteValue > 50f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        if (offsetX > 0) {
+                            MaterialTheme.colorScheme.primary.copy(
+                                alpha = (offsetX / 300f).coerceIn(0f, 0.3f)
+                            )
+                        } else {
+                            MaterialTheme.colorScheme.secondary.copy(
+                                alpha = (offsetX.absoluteValue / 300f).coerceIn(0f, 0.3f)
+                            )
+                        }
+                    ),
+                contentAlignment = if (offsetX > 0) Alignment.CenterStart else Alignment.CenterEnd
+            ) {
+                Icon(
+                    imageVector = if (offsetX > 0) {
+                        Icons.Default.SkipPrevious
+                    } else {
+                        Icons.Default.SkipNext
+                    },
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(64.dp)
+                        .padding(16.dp),
+                    tint = Color.White.copy(
+                        alpha = (offsetX.absoluteValue / 150f).coerceIn(0f, 1f)
+                    )
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -238,7 +375,6 @@ fun ProgressBar(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        // Slider
         Slider(
             value = if (duration > 0) {
                 (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
@@ -250,7 +386,6 @@ fun ProgressBar(
             modifier = Modifier.fillMaxWidth()
         )
 
-        // Timestamps
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -282,7 +417,6 @@ fun PlayerControls(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Previous
         IconButton(
             onClick = onPrevious,
             modifier = Modifier.size(64.dp)
@@ -294,7 +428,6 @@ fun PlayerControls(
             )
         }
 
-        // Play/Pause
         FilledIconButton(
             onClick = onPlayPause,
             modifier = Modifier.size(80.dp),
@@ -309,7 +442,6 @@ fun PlayerControls(
             )
         }
 
-        // Next
         IconButton(
             onClick = onNext,
             modifier = Modifier.size(64.dp)
@@ -348,7 +480,6 @@ fun SecondaryControls(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Shuffle
         IconButton(onClick = onShuffleToggle) {
             Icon(
                 imageVector = Icons.Default.Shuffle,
@@ -366,7 +497,6 @@ fun SecondaryControls(
             )
         }
 
-        // Favorite (placeholder)
         IconButton(
             onClick = onFavoriteToggle,
             enabled = currentSongId != null
@@ -382,7 +512,6 @@ fun SecondaryControls(
             )
         }
 
-        // Repeat
         IconButton(onClick = onRepeatToggle) {
             Icon(
                 imageVector = when (repeatMode) {
@@ -399,7 +528,6 @@ fun SecondaryControls(
             )
         }
 
-        // Add to playlist
         IconButton(
             onClick = { showAddToPlaylist = true },
             enabled = currentSongId != null
@@ -410,7 +538,6 @@ fun SecondaryControls(
             )
         }
 
-        // Queue ⬇️ MODIFIER
         BadgedBox(
             badge = {
                 if (queueSize > 0) {
@@ -443,7 +570,6 @@ fun SecondaryControls(
             },
             onCreateNewPlaylist = {
                 showAddToPlaylist = false
-                // TODO: Ouvrir dialog création
             }
         )
     }

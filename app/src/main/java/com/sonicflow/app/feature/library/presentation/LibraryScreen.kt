@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -25,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.ui.graphics.Color
@@ -54,11 +56,16 @@ import com.sonicflow.app.feature.player.presentation.PlayerViewModel
 import com.sonicflow.app.feature.playlist.components.AddToPlaylistDialog
 import com.sonicflow.app.feature.playlist.presentation.CreatePlaylistDialog
 import com.sonicflow.app.feature.playlist.presentation.PlaylistViewModel
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import com.sonicflow.app.core.common.AlbumPalette
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
     playerViewModel: PlayerViewModel = hiltViewModel(),
+    albumPalette: AlbumPalette? = null, // 🎨 Palette pour le mini-player
     initialTab: Int = 0,
     onTabChanged: (Int) -> Unit = {},
     onSongClick: (Song, List<Song>) -> Unit = { _, _ -> },
@@ -72,24 +79,18 @@ fun LibraryScreen(
     val error by viewModel.error.collectAsState()
     val playerState by playerViewModel.state.collectAsState()
 
-    // Gestion des onglets
     var selectedTab by remember(initialTab) { mutableIntStateOf(initialTab) }
-    val tabs = listOf("For You","Songs", "Favorites", "Playlists","Albums", "Artists")
+    val tabs = listOf("For You", "Songs", "Favorites", "Playlists", "Albums", "Artists")
 
     LaunchedEffect(selectedTab) {
         onTabChanged(selectedTab)
     }
 
-    // Filtrer les favoris
     val favoriteSongs = songs.filter { it.isFavorite }
 
-    // État de recherche
     var searchQuery by remember { mutableStateOf("") }
-    //val debouncedQuery = rememberDebouncedValue(searchQuery, 300L)
-
     var isSearchActive by remember { mutableStateOf(false) }
 
-    // Filtrer selon la recherche
     val filteredSongs = if (searchQuery.isBlank()) {
         songs
     } else {
@@ -99,6 +100,10 @@ fun LibraryScreen(
                     it.album.contains(searchQuery, ignoreCase = true)
         }
     }
+
+    // État pour pull-to-refresh
+    var isRefreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -142,6 +147,7 @@ fun LibraryScreen(
                 isPlaying = playerState.isPlaying,
                 currentPosition = playerState.currentPosition,
                 duration = playerState.duration,
+                albumPalette = albumPalette, // 🎨 Passer la palette
                 onPlayPauseClick = {
                     playerViewModel.handleIntent(PlayerIntent.PlayPause)
                 },
@@ -152,28 +158,43 @@ fun LibraryScreen(
             )
         }
     ) { paddingValues ->
-        Box(
+        // Pull-to-refresh
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                scope.launch {
+                    isRefreshing = true
+                    viewModel.loadSongs()
+                    kotlinx.coroutines.delay(1000)
+                    isRefreshing = false
+                }
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
             when {
-                isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+                isLoading && !isRefreshing -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
                 error != null -> {
-                    Text(
-                        text = "Error: $error",
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp)
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Error: $error",
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
                 }
                 else -> {
-                    // Afficher selon l'onglet sélectionné
                     when (selectedTab) {
                         0 -> {
                             val forYouViewModel: ForYouViewModel = hiltViewModel()
@@ -185,43 +206,32 @@ fun LibraryScreen(
                                 onSongClick = onSongClick
                             )
                         }
-                        1 -> {
-                            SongsList(
-                                songs = filteredSongs,
-                                playerViewModel = playerViewModel,
-                                onSongClick = onSongClick
-                            )
-                        }
-                        2 -> { // Favorites
-                            SongsList(
-                                songs = favoriteSongs,
-                                playerViewModel = playerViewModel,
-                                onSongClick = onSongClick,
-                                emptyMessage = "No favorite songs yet"
-                            )
-                        }
-                        3 -> { // Playlists
-                            PlaylistsScreen(
-                                onPlaylistClick = onPlaylistClick
-                            )
-                        }
-                        4 -> { // Albums
-                            AlbumsScreen(
-                                onAlbumClick = onAlbumClick
-                            )
-                        }
-                        5 -> { // Artists
-                            ArtistsScreen(
-                                onArtistClick = onArtistClick
-                            )
-                        }
+                        1 -> SongsList(
+                            songs = filteredSongs,
+                            playerViewModel = playerViewModel,
+                            onSongClick = onSongClick
+                        )
+                        2 -> SongsList(
+                            songs = favoriteSongs,
+                            playerViewModel = playerViewModel,
+                            onSongClick = onSongClick,
+                            emptyMessage = "No favorite songs yet"
+                        )
+                        3 -> PlaylistsScreen(
+                            onPlaylistClick = onPlaylistClick
+                        )
+                        4 -> AlbumsScreen(
+                            onAlbumClick = onAlbumClick
+                        )
+                        5 -> ArtistsScreen(
+                            onArtistClick = onArtistClick
+                        )
                     }
                 }
             }
         }
     }
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -426,19 +436,8 @@ fun SongItem(
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            // More (menu)
-            IconButton(
-                onClick = { onMoreClick(song) },
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More options"
-                )
-            }
         },
         modifier = Modifier.clickable(onClick = onClick)
     )
     HorizontalDivider()
 }
-

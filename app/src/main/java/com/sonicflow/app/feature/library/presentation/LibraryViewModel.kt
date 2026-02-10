@@ -34,7 +34,7 @@ class LibraryViewModel @Inject constructor(
         loadSongs()
     }
 
-    private fun loadSongs() {
+    fun loadSongs() {
         viewModelScope.launch {
             getAllSongsUseCase().collect { resource ->
                 when (resource) {

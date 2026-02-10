@@ -23,7 +23,7 @@ import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.domain.model.Playlist
 import com.sonicflow.app.core.domain.usecase.GetPlaylistSongsUseCase
 import com.sonicflow.app.core.player.service.MusicService
-import com.sonicflow.app.  core.ui.theme.SonicFlowTheme
+import com.sonicflow.app.core.ui.theme.SonicFlowTheme
 import com.sonicflow.app.core.domain.model.Album
 import com.sonicflow.app.core.domain.model.Artist
 import com.sonicflow.app.feature.library.presentation.ArtistDetailScreen
@@ -37,6 +37,8 @@ import com.sonicflow.app.feature.player.presentation.PlayerScreen
 import com.sonicflow.app.feature.player.presentation.PlayerViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -129,95 +131,112 @@ sealed class Screen {
     data class ArtistDetail(val artist: Artist) : Screen()
     data object Queue : Screen()
 }
+
 @Composable
 fun AppNavigation() {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Library) }
     var selectedLibraryTab by remember { mutableIntStateOf(0) }
     val playerViewModel: PlayerViewModel = hiltViewModel()
 
-    when (val screen = currentScreen) {
-        Screen.Library -> {
-            LibraryScreen(
-                playerViewModel = playerViewModel,
-                initialTab = selectedLibraryTab,
-                onTabChanged = { newTab -> selectedLibraryTab = newTab },
-                onSongClick = { song, allSongs ->
-                    val startIndex = allSongs.indexOf(song)
-                    playerViewModel.handleIntent(
-                        PlayerIntent.PlayQueue(
-                            songs = allSongs,
-                            startIndex = startIndex
+    AnimatedContent(
+        targetState = currentScreen,
+        transitionSpec = {
+            // Slide horizontal pour Player
+            if (targetState is Screen.Player || initialState is Screen.Player) {
+                slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Up,
+                    animationSpec = tween(300)
+                ) togetherWith slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Down,
+                    animationSpec = tween(300)
+                )
+            } else {
+                // Fade pour les autres transitions
+                fadeIn(animationSpec = tween(300)) togetherWith
+                        fadeOut(animationSpec = tween(300))
+            }
+        },
+        label = "screen transition"
+    ) { screen ->
+        when (screen) {
+            Screen.Library -> {
+                LibraryScreen(
+                    playerViewModel = playerViewModel,
+                    initialTab = selectedLibraryTab,
+                    onTabChanged = { newTab -> selectedLibraryTab = newTab },
+                    onSongClick = { song, allSongs ->
+                        val startIndex = allSongs.indexOf(song)
+                        playerViewModel.handleIntent(
+                            PlayerIntent.PlayQueue(
+                                songs = allSongs,
+                                startIndex = startIndex
+                            )
                         )
-                    )
-                    currentScreen = Screen.Player
-                },
-                onPlaylistClick = { playlist ->
-                    selectedLibraryTab = 3
-                    currentScreen = Screen.PlaylistDetail(playlist)
-                },
-                onAlbumClick = { album ->
-                    selectedLibraryTab = 4
-                    currentScreen = Screen.AlbumDetail(album)
-                },
-                onArtistClick = { artist ->
-                    selectedLibraryTab = 5
-                    currentScreen = Screen.ArtistDetail(artist)
-                },
-                onMiniPlayerClick = {
-                    currentScreen = Screen.Player
-                }
-            )
-        }
-        Screen.Player -> {
-            PlayerScreen(
-                viewModel = playerViewModel,
-                onNavigateBack = {
-                    currentScreen = Screen.Library
-                },
-                onQueueClick = {
-                    currentScreen = Screen.Queue
-                }
-            )
-        }
-
-        Screen.Queue -> {
-            QueueScreen(
-                viewModel = playerViewModel,
-                onNavigateBack = {
-                    currentScreen = Screen.Player
-                }
-            )
-        }
-
-        is Screen.PlaylistDetail -> {
-            PlaylistDetailScreen(
-                playlist = screen.playlist,
-                playerViewModel = playerViewModel,
-                onNavigateBack = {
-                    currentScreen = Screen.Library
-                }
-            )
-        }
-        is Screen.AlbumDetail -> {
-            AlbumDetailScreen(
-                album = screen.album,
-                playerViewModel = playerViewModel,
-                onNavigateBack = {
-                    currentScreen = Screen.Library
-                },
-                onMiniPlayerClick = {
-                    currentScreen = Screen.Player
-                }
-            )
-        }
-        is Screen.ArtistDetail -> {
-            ArtistDetailScreen(
-                artist = screen.artist,
-                playerViewModel = playerViewModel,
-                onNavigateBack = {
-                    currentScreen = Screen.Library
-                }
-            )
+                        currentScreen = Screen.Player
+                    },
+                    onPlaylistClick = { playlist ->
+                        selectedLibraryTab = 3 // Playlists tab
+                        currentScreen = Screen.PlaylistDetail(playlist)
+                    },
+                    onAlbumClick = { album ->
+                        selectedLibraryTab = 4 // Albums tab
+                        currentScreen = Screen.AlbumDetail(album)
+                    },
+                    onArtistClick = { artist ->
+                        selectedLibraryTab = 5 // Artists tab
+                        currentScreen = Screen.ArtistDetail(artist)
+                    },
+                    onMiniPlayerClick = {
+                        currentScreen = Screen.Player
+                    }
+                )
+            }
+            Screen.Player -> {
+                PlayerScreen(
+                    viewModel = playerViewModel,
+                    onNavigateBack = {
+                        currentScreen = Screen.Library
+                    },
+                    onQueueClick = {
+                        currentScreen = Screen.Queue
+                    }
+                )
+            }
+            is Screen.PlaylistDetail -> {
+                PlaylistDetailScreen(
+                    playlist = screen.playlist,
+                    playerViewModel = playerViewModel,
+                    onNavigateBack = {
+                        currentScreen = Screen.Library
+                    }
+                )
+            }
+            is Screen.AlbumDetail -> {
+                AlbumDetailScreen(
+                    album = screen.album,
+                    playerViewModel = playerViewModel,
+                    onNavigateBack = {
+                        currentScreen = Screen.Library
+                    }
+                )
+            }
+            is Screen.ArtistDetail -> {
+                ArtistDetailScreen(
+                    artist = screen.artist,
+                    playerViewModel = playerViewModel,
+                    onNavigateBack = {
+                        currentScreen = Screen.Library
+                    }
+                )
+            }
+            Screen.Queue -> {
+                QueueScreen(
+                    viewModel = playerViewModel,
+                    onNavigateBack = {
+                        currentScreen = Screen.Player
+                    }
+                )
+            }
         }
     }
 }
