@@ -152,14 +152,15 @@ fun AppNavigation() {
                     currentScreen = Screen.Player
                 },
                 onPlaylistClick = { playlist ->
-                    selectedLibraryTab = 2
+                    selectedLibraryTab = 3
                     currentScreen = Screen.PlaylistDetail(playlist)
                 },
                 onAlbumClick = { album ->
-                    selectedLibraryTab = 3
+                    selectedLibraryTab = 4
                     currentScreen = Screen.AlbumDetail(album)
                 },
                 onArtistClick = { artist ->
+                    selectedLibraryTab = 5
                     currentScreen = Screen.ArtistDetail(artist)
                 },
                 onMiniPlayerClick = {

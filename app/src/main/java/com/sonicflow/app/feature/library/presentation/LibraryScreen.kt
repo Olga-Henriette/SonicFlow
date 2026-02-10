@@ -44,6 +44,8 @@ import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.domain.model.Playlist
 import com.sonicflow.app.core.domain.model.Album
 import com.sonicflow.app.core.domain.model.Artist
+import com.sonicflow.app.core.domain.usecase.GetMostPlayedUseCase
+import com.sonicflow.app.core.domain.usecase.GetRecentlyPlayedUseCase
 import com.sonicflow.app.feature.playlist.presentation.PlaylistsScreen
 import com.sonicflow.app.feature.player.components.MiniPlayer
 import com.sonicflow.app.feature.player.presentation.PlayerIntent
@@ -72,7 +74,7 @@ fun LibraryScreen(
 
     // Gestion des onglets
     var selectedTab by remember(initialTab) { mutableIntStateOf(initialTab) }
-    val tabs = listOf("Songs", "Favorites", "Playlists","Albums", "Artists")
+    val tabs = listOf("For You","Songs", "Favorites", "Playlists","Albums", "Artists")
 
     LaunchedEffect(selectedTab) {
         onTabChanged(selectedTab)
@@ -88,7 +90,6 @@ fun LibraryScreen(
     var isSearchActive by remember { mutableStateOf(false) }
 
     // Filtrer selon la recherche
-
     val filteredSongs = if (searchQuery.isBlank()) {
         songs
     } else {
@@ -174,26 +175,46 @@ fun LibraryScreen(
                 else -> {
                     // Afficher selon l'onglet sélectionné
                     when (selectedTab) {
-                        0 -> SongsList(
-                            songs = filteredSongs,
-                            playerViewModel = playerViewModel,
-                            onSongClick = onSongClick
-                        )
-                        1 -> SongsList(
-                            songs = favoriteSongs,
-                            playerViewModel = playerViewModel,
-                            onSongClick = onSongClick,
-                            emptyMessage = "No favorite songs yet"
-                        )
-                        2 -> PlaylistsScreen(
-                            onPlaylistClick = onPlaylistClick
-                        )
-                        3 -> AlbumsScreen(
-                            onAlbumClick = onAlbumClick
-                        )
-                        4 -> ArtistsScreen(
-                            onArtistClick = onArtistClick
-                        )
+                        0 -> {
+                            val forYouViewModel: ForYouViewModel = hiltViewModel()
+                            ForYouScreen(
+                                libraryViewModel = viewModel,
+                                playerViewModel = playerViewModel,
+                                getMostPlayedUseCase = forYouViewModel.getMostPlayedUseCase,
+                                getRecentlyPlayedUseCase = forYouViewModel.getRecentlyPlayedUseCase,
+                                onSongClick = onSongClick
+                            )
+                        }
+                        1 -> {
+                            SongsList(
+                                songs = filteredSongs,
+                                playerViewModel = playerViewModel,
+                                onSongClick = onSongClick
+                            )
+                        }
+                        2 -> { // Favorites
+                            SongsList(
+                                songs = favoriteSongs,
+                                playerViewModel = playerViewModel,
+                                onSongClick = onSongClick,
+                                emptyMessage = "No favorite songs yet"
+                            )
+                        }
+                        3 -> { // Playlists
+                            PlaylistsScreen(
+                                onPlaylistClick = onPlaylistClick
+                            )
+                        }
+                        4 -> { // Albums
+                            AlbumsScreen(
+                                onAlbumClick = onAlbumClick
+                            )
+                        }
+                        5 -> { // Artists
+                            ArtistsScreen(
+                                onArtistClick = onArtistClick
+                            )
+                        }
                     }
                 }
             }

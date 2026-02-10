@@ -214,7 +214,7 @@ class MusicRepositoryImpl @Inject constructor(
     }
 
     override fun getFavoriteSongs(): Flow<List<Song>> = flow {
-        favoriteDao.getFavoriteSongIds().collect { favoriteIds ->
+        favoriteDao.getFavoriteSongIds( ).collect { favoriteIds ->
             getAllSongs().collect { resource ->
                 if (resource is Resource.Success) {
                     val favorites = resource.data?.filter { favoriteIds.contains(it.id) } ?: emptyList()

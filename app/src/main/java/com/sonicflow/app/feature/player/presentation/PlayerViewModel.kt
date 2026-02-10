@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.domain.usecase.AddSongToPlaylistUseCase
+import com.sonicflow.app.core.domain.usecase.IncrementPlayCountUseCase
 import com.sonicflow.app.core.domain.usecase.RemoveSongFromPlaylistUseCase // ← VÉRIFIER CETTE LIGNE
 import com.sonicflow.app.core.domain.usecase.ToggleFavoriteUseCase
 import com.sonicflow.app.core.player.controller.PlayerController
@@ -29,7 +30,8 @@ class PlayerViewModel @Inject constructor(
     private val playerController: PlayerController,
     private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val addSongToPlaylistUseCase: AddSongToPlaylistUseCase,
-    private val removeSongFromPlaylistUseCase: RemoveSongFromPlaylistUseCase
+    private val removeSongFromPlaylistUseCase: RemoveSongFromPlaylistUseCase,
+    private val incrementPlayCountUseCase: IncrementPlayCountUseCase
 ) : ViewModel() {
 
     // État unique du player
@@ -146,6 +148,10 @@ class PlayerViewModel @Inject constructor(
                 currentIndex = 0
             )
         }
+        // Incrémenter le compteur de lecture
+        viewModelScope.launch {
+            incrementPlayCountUseCase(song.id)
+        }
     }
 
     /**
@@ -164,6 +170,10 @@ class PlayerViewModel @Inject constructor(
                 currentIndex = index,
                 currentSong = songs[index]
             )
+        }
+
+        viewModelScope.launch {
+            incrementPlayCountUseCase(songs[index].id)
         }
     }
 
