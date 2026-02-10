@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.BedtimeOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.Composable
@@ -26,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import com.sonicflow.app.feature.playlist.presentation.PlaylistViewModel
 import com.sonicflow.app.feature.playlist.components.AddToPlaylistDialog
+import com.sonicflow.app.feature.player.components.SleepTimerDialog
 import com.sonicflow.app.core.common.AlbumPalette
 import com.sonicflow.app.core.common.PaletteExtractor
 import com.sonicflow.app.core.domain.model.Song
@@ -54,10 +57,12 @@ fun PlayerScreen(
     onQueueClick: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
+    val sleepTimerMinutes by viewModel.sleepTimerMinutes.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     var localPalette by remember { mutableStateOf<AlbumPalette?>(null) }
+    var showSleepTimerDialog by remember { mutableStateOf(false) }
 
     val animatedBackgroundColor by animateColorAsState(
         targetValue = (localPalette ?: albumPalette)?.background
@@ -102,7 +107,6 @@ fun PlayerScreen(
             )
         }
     ) { paddingValues ->
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -183,6 +187,7 @@ fun PlayerScreen(
                         isShuffled = state.isShuffled,
                         repeatMode = state.repeatMode,
                         queueSize = state.queue.size,
+                        sleepTimerMinutes = sleepTimerMinutes,
                         onFavoriteToggle = {
                             state.currentSong?.let { song ->
                                 viewModel.handleIntent(PlayerIntent.ToggleFavorite(song.id))
@@ -194,13 +199,31 @@ fun PlayerScreen(
                         onRepeatToggle = {
                             viewModel.handleIntent(PlayerIntent.ToggleRepeat)
                         },
-                        onQueueClick = onQueueClick
+                        onQueueClick = onQueueClick,
+                        onSleepTimerClick = {
+                            showSleepTimerDialog = true
+                        }
                     )
 
                     Spacer(modifier = Modifier.height(32.dp))
                 }
             }
         }
+    }
+    // Dialog du sleep timer
+    if (showSleepTimerDialog) {
+        SleepTimerDialog(
+            currentTimerMinutes = sleepTimerMinutes,
+            onDismiss = { showSleepTimerDialog = false },
+            onSetTimer = { minutes ->
+                viewModel.startSleepTimer(minutes)
+                context.showToast("Sleep timer set for $minutes minutes")
+            },
+            onCancelTimer = {
+                viewModel.cancelSleepTimer()
+                context.showToast("Sleep timer cancelled")
+            }
+        )
     }
 }
 
@@ -463,10 +486,12 @@ fun SecondaryControls(
     isShuffled: Boolean,
     repeatMode: RepeatMode,
     queueSize: Int = 0,
+    sleepTimerMinutes: Int? = null,
     onFavoriteToggle: () -> Unit,
     onShuffleToggle: () -> Unit,
     onRepeatToggle: () -> Unit,
     onQueueClick: () -> Unit = {},
+    onSleepTimerClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showAddToPlaylist by remember { mutableStateOf(false) }
@@ -495,6 +520,33 @@ fun SecondaryControls(
                     Modifier.size(24.dp)
                 }
             )
+        }
+
+        // Sleep Timer
+        BadgedBox(
+            badge = {
+                if (sleepTimerMinutes != null) {
+                    Badge {
+                        Text("${sleepTimerMinutes}m")
+                    }
+                }
+            }
+        ) {
+            IconButton(onClick = onSleepTimerClick) {
+                Icon(
+                    imageVector = if (sleepTimerMinutes != null) {
+                        Icons.Default.BedtimeOff
+                    } else {
+                        Icons.Default.Bedtime
+                    },
+                    contentDescription = "Sleep Timer",
+                    tint = if (sleepTimerMinutes != null) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
         }
 
         IconButton(

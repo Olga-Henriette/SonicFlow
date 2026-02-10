@@ -8,6 +8,7 @@ import com.sonicflow.app.core.domain.usecase.IncrementPlayCountUseCase
 import com.sonicflow.app.core.domain.usecase.RemoveSongFromPlaylistUseCase // ← VÉRIFIER CETTE LIGNE
 import com.sonicflow.app.core.domain.usecase.ToggleFavoriteUseCase
 import com.sonicflow.app.core.player.controller.PlayerController
+import com.sonicflow.app.core.player.service.SleepTimerManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -31,7 +32,8 @@ class PlayerViewModel @Inject constructor(
     private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val addSongToPlaylistUseCase: AddSongToPlaylistUseCase,
     private val removeSongFromPlaylistUseCase: RemoveSongFromPlaylistUseCase,
-    private val incrementPlayCountUseCase: IncrementPlayCountUseCase
+    private val incrementPlayCountUseCase: IncrementPlayCountUseCase,
+    private val sleepTimerManager: SleepTimerManager
 ) : ViewModel() {
 
     // État unique du player
@@ -55,6 +57,11 @@ class PlayerViewModel @Inject constructor(
             handleIntent(PlayerIntent.Next)
         }
 
+        // Écouter la fin du timer
+        sleepTimerManager.onTimerFinished = {
+            playerController.pause()
+        }
+
         playerController.onMediaItemTransition = { newIndex ->
             val currentState = _state.value
             if (newIndex < currentState.queue.size) {
@@ -66,6 +73,19 @@ class PlayerViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    // Flow pour le timer
+    val sleepTimerMinutes: StateFlow<Int?> = sleepTimerManager.remainingMinutes
+
+    // Fonctions pour gérer le timer
+    fun startSleepTimer(minutes: Int) {
+        sleepTimerManager.startTimer(minutes)
+        Timber.d("Sleep timer started: $minutes minutes")
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerManager.cancelTimer()
     }
 
     /**
