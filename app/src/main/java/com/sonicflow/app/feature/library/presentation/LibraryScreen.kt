@@ -2,6 +2,8 @@ package com.sonicflow.app.feature.library.presentation
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -12,6 +14,8 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +39,7 @@ import com.sonicflow.app.core.ui.components.AlbumArtImage
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sonicflow.app.core.common.formatDuration
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
@@ -59,13 +64,14 @@ import com.sonicflow.app.feature.playlist.presentation.PlaylistViewModel
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import com.sonicflow.app.core.common.AlbumPalette
+import com.sonicflow.app.core.ui.components.SongListItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
     playerViewModel: PlayerViewModel = hiltViewModel(),
-    albumPalette: AlbumPalette? = null, // 🎨 Palette pour le mini-player
+    albumPalette: AlbumPalette? = null,
     initialTab: Int = 0,
     onTabChanged: (Int) -> Unit = {},
     onSongClick: (Song, List<Song>) -> Unit = { _, _ -> },
@@ -82,6 +88,13 @@ fun LibraryScreen(
     var selectedTab by remember(initialTab) { mutableIntStateOf(initialTab) }
     val tabs = listOf("For You", "Songs", "Favorites", "Playlists", "Albums", "Artists")
 
+    val pagerState = rememberPagerState(
+        initialPage = initialTab,
+        pageCount = { tabs.size }
+    )
+
+    val scope = rememberCoroutineScope()
+
     LaunchedEffect(selectedTab) {
         onTabChanged(selectedTab)
     }
@@ -90,6 +103,7 @@ fun LibraryScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
+    var showDrawer by remember { mutableStateOf(false) }
 
     val filteredSongs = if (searchQuery.isBlank()) {
         songs
@@ -103,7 +117,6 @@ fun LibraryScreen(
 
     // État pour pull-to-refresh
     var isRefreshing by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -119,26 +132,57 @@ fun LibraryScreen(
                     )
                 } else {
                     TopAppBar(
-                        title = { Text("Library") },
+                        title = { Text("SonicFlow") },
+                        navigationIcon = {
+                            // Menu burger
+                            IconButton(onClick = { showDrawer = true }) {
+                                Icon(Icons.Default.Menu, "Menu")
+                            }
+                        },
                         actions = {
                             IconButton(onClick = { isSearchActive = true }) {
                                 Icon(Icons.Default.Search, "Search")
+                            }
+                            IconButton(onClick = { /* TODO: Options */ }) {
+                                Icon(Icons.Default.MoreVert, "Options")
                             }
                         }
                     )
                 }
 
-                TabRow(
-                    selectedTabIndex = selectedTab
+                // ⬇️ NOUVEAU : ScrollableTabRow au lieu de TabRow
+                ScrollableTabRow(
+                    selectedTabIndex = pagerState.currentPage,
+                    edgePadding = 0.dp
                 ) {
                     tabs.forEachIndexed { index, title ->
                         Tab(
-                            selected = selectedTab == index,
-                            onClick = { selectedTab = index },
-                            text = { Text(title) }
+                            selected = pagerState.currentPage == index,
+                            onClick = {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(index)
+                                }
+                            },
+                            text = {
+                                Text(
+                                    text = title,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Visible
+                                )
+                            }
                         )
                     }
                 }
+
+                // Stats et tri
+                TabStatsBar(
+                    currentTab = pagerState.currentPage,
+                    songsCount = songs.size,
+                    favoritesCount = favoriteSongs.size,
+                    playlistsCount = 0, // TODO: récupérer du ViewModel
+                    albumsCount = 0, // TODO
+                    artistsCount = 0 // TODO
+                )
             }
         },
         bottomBar = {
@@ -158,75 +202,145 @@ fun LibraryScreen(
             )
         }
     ) { paddingValues ->
-        // Pull-to-refresh
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = {
-                scope.launch {
-                    isRefreshing = true
-                    viewModel.loadSongs()
-                    kotlinx.coroutines.delay(1000)
-                    isRefreshing = false
-                }
-            },
+        // HorizontalPager
+        HorizontalPager(
+            state = pagerState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-        ) {
-            when {
-                isLoading && !isRefreshing -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
+        ) { page ->
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = {
+                    scope.launch {
+                        isRefreshing = true
+                        viewModel.loadSongs()
+                        kotlinx.coroutines.delay(1000)
+                        isRefreshing = false
                     }
-                }
-                error != null -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Error: $error",
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(16.dp)
-                        )
+                },
+                modifier = Modifier.fillMaxSize()
+            ) {
+                when {
+                    isLoading && !isRefreshing -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
                     }
-                }
-                else -> {
-                    when (selectedTab) {
-                        0 -> {
-                            val forYouViewModel: ForYouViewModel = hiltViewModel()
-                            ForYouScreen(
-                                libraryViewModel = viewModel,
-                                playerViewModel = playerViewModel,
-                                getMostPlayedUseCase = forYouViewModel.getMostPlayedUseCase,
-                                getRecentlyPlayedUseCase = forYouViewModel.getRecentlyPlayedUseCase,
-                                onSongClick = onSongClick
+                    error != null -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Error: $error",
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(16.dp)
                             )
                         }
-                        1 -> SongsList(
-                            songs = filteredSongs,
-                            playerViewModel = playerViewModel,
-                            onSongClick = onSongClick
-                        )
-                        2 -> SongsList(
-                            songs = favoriteSongs,
-                            playerViewModel = playerViewModel,
-                            onSongClick = onSongClick,
-                            emptyMessage = "No favorite songs yet"
-                        )
-                        3 -> PlaylistsScreen(
-                            onPlaylistClick = onPlaylistClick
-                        )
-                        4 -> AlbumsScreen(
-                            onAlbumClick = onAlbumClick
-                        )
-                        5 -> ArtistsScreen(
-                            onArtistClick = onArtistClick
-                        )
                     }
+                    else -> {
+                        when (page) {
+                            0 -> {
+                                val forYouViewModel: ForYouViewModel = hiltViewModel()
+                                ForYouScreen(
+                                    libraryViewModel = viewModel,
+                                    playerViewModel = playerViewModel,
+                                    getMostPlayedUseCase = forYouViewModel.getMostPlayedUseCase,
+                                    getRecentlyPlayedUseCase = forYouViewModel.getRecentlyPlayedUseCase,
+                                    onSongClick = onSongClick
+                                )
+                            }
+                            1 -> SongsList(
+                                songs = filteredSongs,
+                                playerViewModel = playerViewModel,
+                                currentSong = playerState.currentSong,
+                                isPlaying = playerState.isPlaying,
+                                onSongClick = onSongClick
+                            )
+                            2 -> SongsList(
+                                songs = favoriteSongs,
+                                playerViewModel = playerViewModel,
+                                currentSong = playerState.currentSong,
+                                isPlaying = playerState.isPlaying,
+                                onSongClick = onSongClick,
+                                emptyMessage = "No favorite songs yet"
+                            )
+                            3 -> PlaylistsScreen(
+                                onPlaylistClick = onPlaylistClick
+                            )
+                            4 -> AlbumsScreen(
+                                onAlbumClick = onAlbumClick
+                            )
+                            5 -> ArtistsScreen(
+                                onArtistClick = onArtistClick
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun TabStatsBar(
+    currentTab: Int,
+    songsCount: Int,
+    favoritesCount: Int,
+    playlistsCount: Int,
+    albumsCount: Int,
+    artistsCount: Int,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        tonalElevation = 1.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Statistiques
+            Text(
+                text = when (currentTab) {
+                    0 -> "For You"
+                    1 -> "$songsCount songs"
+                    2 -> "$favoritesCount favorites"
+                    3 -> "$playlistsCount playlists"
+                    4 -> "$albumsCount albums"
+                    5 -> "$artistsCount artists"
+                    else -> ""
+                },
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Tri
+            if (currentTab in 1..2) { // Songs et Favorites
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Sort,
+                        contentDescription = "Sort",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "By name",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
@@ -271,11 +385,14 @@ fun SearchTopBar(
     )
 }
 
-// Extraire la liste en composable séparé
+// LibraryScreen.kt
+
 @Composable
 fun SongsList(
     songs: List<Song>,
     playerViewModel: PlayerViewModel,
+    currentSong: Song?,
+    isPlaying: Boolean,
     playlistViewModel: PlaylistViewModel = hiltViewModel(),
     onSongClick: (Song, List<Song>) -> Unit,
     emptyMessage: String = "No songs found"
@@ -297,23 +414,26 @@ fun SongsList(
         LazyColumn(
             modifier = Modifier.fillMaxSize()
         ) {
-            items(songs) { song ->
-                SongItem(
+            items(songs, key = { it.id }) { song ->
+                SongListItem(
                     song = song,
-                    onFavoriteClick = { clickedSong ->
+                    isCurrentlyPlaying = song.id == currentSong?.id,
+                    isPlaying = isPlaying,
+                    onSongClick = { onSongClick(song, songs) },
+                    onFavoriteClick = {
                         playerViewModel.handleIntent(
-                            PlayerIntent.ToggleFavorite(clickedSong.id)
+                            PlayerIntent.ToggleFavorite(song.id)
                         )
                     },
-                    onAddToPlaylistClick = { clickedSong ->
-                        songToAddToPlaylist = clickedSong
-                    },
-                    onClick = { onSongClick(song, songs) }
+                    onMoreClick = {
+                        songToAddToPlaylist = song
+                    }
                 )
             }
         }
     }
-    // Dialog pour ajouter à une playlist
+
+    // Dialogs
     songToAddToPlaylist?.let { song ->
         AddToPlaylistDialog(
             song = song,
@@ -336,7 +456,6 @@ fun SongsList(
         )
     }
 
-    // Dialog création rapide de playlist
     if (showCreatePlaylistDialog) {
         CreatePlaylistDialog(
             onDismiss = { showCreatePlaylistDialog = false },
