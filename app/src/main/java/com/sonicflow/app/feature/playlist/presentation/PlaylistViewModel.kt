@@ -29,6 +29,8 @@ class PlaylistViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    val playlistCount: StateFlow<Int> = MutableStateFlow(0)
+
     init {
         loadPlaylists()
     }
@@ -38,6 +40,7 @@ class PlaylistViewModel @Inject constructor(
             _isLoading.value = true
             getAllPlaylistsUseCase().collect { playlistList ->
                 _playlists.value = playlistList
+                (playlistCount as MutableStateFlow).value = playlistList.size
                 _isLoading.value = false
             }
         }

@@ -71,6 +71,7 @@ import com.sonicflow.app.core.ui.components.SongListItem
 fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
     playerViewModel: PlayerViewModel = hiltViewModel(),
+    playlistViewModel: PlaylistViewModel = hiltViewModel(),
     albumPalette: AlbumPalette? = null,
     initialTab: Int = 0,
     onTabChanged: (Int) -> Unit = {},
@@ -84,6 +85,10 @@ fun LibraryScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val playerState by playerViewModel.state.collectAsState()
+
+    val albumCount by viewModel.albumCount.collectAsState()
+    val artistCount by viewModel.artistCount.collectAsState()
+    val playlistCount by playlistViewModel.playlistCount.collectAsState()
 
     var selectedTab by remember(initialTab) { mutableIntStateOf(initialTab) }
     val tabs = listOf("For You", "Songs", "Favorites", "Playlists", "Albums", "Artists")
@@ -150,7 +155,6 @@ fun LibraryScreen(
                     )
                 }
 
-                // ⬇️ NOUVEAU : ScrollableTabRow au lieu de TabRow
                 ScrollableTabRow(
                     selectedTabIndex = pagerState.currentPage,
                     edgePadding = 0.dp
@@ -179,9 +183,9 @@ fun LibraryScreen(
                     currentTab = pagerState.currentPage,
                     songsCount = songs.size,
                     favoritesCount = favoriteSongs.size,
-                    playlistsCount = 0, // TODO: récupérer du ViewModel
-                    albumsCount = 0, // TODO
-                    artistsCount = 0 // TODO
+                    playlistsCount = playlistCount,
+                    albumsCount = albumCount,
+                    artistsCount = artistCount
                 )
             }
         },

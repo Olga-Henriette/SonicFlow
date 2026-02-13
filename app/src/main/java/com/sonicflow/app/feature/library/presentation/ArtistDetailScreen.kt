@@ -29,10 +29,10 @@ fun ArtistDetailScreen(
     val allSongs by libraryViewModel.songs.collectAsState()
     val playerState by playerViewModel.state.collectAsState()
 
-    // Filtrer les chansons de cet artiste
     val artistSongs = remember(allSongs, artist.name) {
-        allSongs.filter { it.artist.equals(artist.name, ignoreCase = true) }
-            .sortedWith(compareBy({ it.album }, { it.track }))
+        allSongs.filter {
+            normalizeArtistName(it.artist) == normalizeArtistName(artist.name)
+        }.sortedWith(compareBy({ it.album }, { it.track }))
     }
 
     // Grouper par album
@@ -127,6 +127,25 @@ fun ArtistDetailScreen(
     }
 }
 
+private fun normalizeArtistName(artist: String): String {
+    return artist
+        .lowercase()
+        .trim()
+        .split(
+            " feat ",
+            " feat. ",
+            " ft ",
+            " ft. ",
+            " featuring ",
+            " & ",
+            " and ",
+            " x ",
+            " - ",
+            " with "
+        )
+        .first()
+        .trim()
+}
 @Composable
 fun ArtistHeader(
     artist: Artist,

@@ -28,6 +28,9 @@ class LibraryViewModel @Inject constructor(
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
+
+    val albumCount: StateFlow<Int> = MutableStateFlow(0)
+    val artistCount: StateFlow<Int> = MutableStateFlow(0)
     val error: StateFlow<String?> = _error.asStateFlow()
 
     init {
@@ -45,6 +48,8 @@ class LibraryViewModel @Inject constructor(
                     is Resource.Success -> {
                         _isLoading.value = false
                         _songs.value = resource.data ?: emptyList()
+
+                        updateCounts(resource.data ?: emptyList())
                     }
                     is Resource.Error -> {
                         _isLoading.value = false
@@ -53,5 +58,39 @@ class LibraryViewModel @Inject constructor(
                 }
             }
         }
+    }
+    private fun updateCounts(songs: List<Song>) {
+        viewModelScope.launch {
+            val uniqueAlbums = songs.map { it.albumId }.distinct().size
+            (albumCount as MutableStateFlow).value = uniqueAlbums
+
+            val uniqueArtists = songs.map { normalizeArtistName(it.artist) }.distinct().size
+            (artistCount as MutableStateFlow).value = uniqueArtists
+        }
+    }
+    private fun normalizeArtistName(artist: String): String {
+        return artist
+            .lowercase()
+            .trim()
+            .split(
+                " feat ",
+                " feat. ",
+                " ft ",
+                " ft. ",
+                " featuring ",
+                " & ",
+                " and ",
+                " x ",
+                " - "
+            )
+            .first()
+            .trim()
+    }
+
+    fun getNormalizedArtists(): List<String> {
+        return _songs.value
+            .map { normalizeArtistName(it.artist) }
+            .distinct()
+            .sorted()
     }
 }

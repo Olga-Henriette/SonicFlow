@@ -27,17 +27,24 @@ fun ArtistsScreen(
     // Générer la liste d'artistes depuis les chansons
     val artists = remember(songs) {
         songs
-            .groupBy { it.artist }
-            .map { (artistName, artistSongs) ->
+            .groupBy { normalizeArtistName(it.artist) }
+            .map { (normalizedName, artistSongs) ->
+
+                val displayName = artistSongs
+                    .groupBy { it.artist }
+                    .maxByOrNull { it.value.size }
+                    ?.key ?: normalizedName
+
                 val albums = artistSongs.map { it.album }.distinct()
+
                 Artist(
-                    id = artistName.hashCode().toLong(), // ID basique pour l'instant
-                    name = artistName,
+                    id = normalizedName.hashCode().toLong(),
+                    name = displayName,
                     albumCount = albums.size,
                     songCount = artistSongs.size
                 )
             }
-            .sortedBy { it.name }
+            .sortedBy { it.name.lowercase() }
     }
 
     if (artists.isEmpty()) {
@@ -59,6 +66,26 @@ fun ArtistsScreen(
             }
         }
     }
+}
+
+private fun normalizeArtistName(artist: String): String {
+    return artist
+        .lowercase()
+        .trim()
+        .split(
+            " feat ",
+            " feat. ",
+            " ft ",
+            " ft. ",
+            " featuring ",
+            " & ",
+            " and ",
+            " x ",
+            " - ",
+            " with "
+        )
+        .first()
+        .trim()
 }
 
 @Composable
