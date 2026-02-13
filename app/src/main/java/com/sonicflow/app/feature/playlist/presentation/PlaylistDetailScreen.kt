@@ -16,6 +16,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.sonicflow.app.core.common.showToast
 import com.sonicflow.app.core.domain.model.Playlist
 import com.sonicflow.app.core.ui.components.AlbumArtImage
+import com.sonicflow.app.feature.player.components.MiniPlayer
 import com.sonicflow.app.feature.player.presentation.PlayerIntent
 import com.sonicflow.app.feature.player.presentation.PlayerViewModel
 
@@ -24,11 +25,13 @@ fun PlaylistDetailScreen(
     playlist: Playlist,
     playerViewModel: PlayerViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
+    onMiniPlayerClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val viewModel: PlaylistDetailViewModel = hiltViewModel()
     val playlistSongs by viewModel.getPlaylistSongsUseCase(playlist.id)
         .collectAsState(initial = emptyList())
+    val playerState by playerViewModel.state.collectAsState()
 
     val context = LocalContext.current
 
@@ -57,6 +60,21 @@ fun PlaylistDetailScreen(
                         }
                     }
                 }
+            )
+        },
+        bottomBar = {
+            MiniPlayer(
+                currentSong = playerState.currentSong,
+                isPlaying = playerState.isPlaying,
+                currentPosition = playerState.currentPosition,
+                duration = playerState.duration,
+                onPlayPauseClick = {
+                    playerViewModel.handleIntent(PlayerIntent.PlayPause)
+                },
+                onNextClick = {
+                    playerViewModel.handleIntent(PlayerIntent.Next)
+                },
+                onMiniPlayerClick = onMiniPlayerClick
             )
         }
     ) { paddingValues ->
@@ -95,16 +113,23 @@ fun PlaylistDetailScreen(
                 }
 
                 items(playlistSongs, key = { it.id }) { song ->
-                    PlaylistSongItem(
+                    com.sonicflow.app.core.ui.components.SongListItem( // ← Utiliser le nouveau composant
                         song = song,
-                        onRemoveClick = {
-                            songToRemove = song
-                        },
-                        onClick = {
+                        isCurrentlyPlaying = song.id == playerState.currentSong?.id,
+                        isPlaying = playerState.isPlaying,
+                        onSongClick = {
                             val index = playlistSongs.indexOf(song)
                             playerViewModel.handleIntent(
                                 PlayerIntent.PlayQueue(playlistSongs, index)
                             )
+                        },
+                        onFavoriteClick = {
+                            playerViewModel.handleIntent(
+                                PlayerIntent.ToggleFavorite(song.id)
+                            )
+                        },
+                        onMoreClick = {
+                            songToRemove = song
                         }
                     )
                 }

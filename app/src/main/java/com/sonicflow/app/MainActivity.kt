@@ -135,14 +135,47 @@ sealed class Screen {
 
 @Composable
 fun AppNavigation() {
-    var currentScreen by remember { mutableStateOf<Screen>(Screen.Library) }
+    var navigationStack by remember {
+        mutableStateOf(listOf<Screen>(Screen.Library))
+    }
     var selectedLibraryTab by remember { mutableIntStateOf(0) }
     val playerViewModel: PlayerViewModel = hiltViewModel()
+
+    LaunchedEffect(navigationStack) {
+        Timber.d("Navigation Stack: ${navigationStack.joinToString(" → ") {
+            when(it) {
+                is Screen.Library -> "Library(tab=$selectedLibraryTab)"
+                is Screen.Player -> "Player"
+                is Screen.PlaylistDetail -> "PlaylistDetail(${it.playlist.name})"
+                is Screen.AlbumDetail -> "AlbumDetail(${it.album.name})"
+                is Screen.ArtistDetail -> "ArtistDetail(${it.artist.name})"
+                is Screen.Queue -> "Queue"
+            }
+        }}")
+    }
+
+    // Fonction pour naviguer vers un écran
+    fun navigateTo(screen: Screen) {
+        navigationStack = navigationStack + screen
+        Timber.d("➡️ Navigating to: $screen")
+    }
+
+    // Fonction pour revenir en arrière
+    fun navigateBack() {
+        if (navigationStack.size > 1) {
+            val previous = navigationStack[navigationStack.size - 2]
+            navigationStack = navigationStack.dropLast(1)
+            Timber.d("Navigating back to: $previous")
+        } else {
+            Timber.d("Already at root, cannot go back")
+        }
+    }
+
+    val currentScreen = navigationStack.last()
 
     AnimatedContent(
         targetState = currentScreen,
         transitionSpec = {
-            // Slide horizontal pour Player
             if (targetState is Screen.Player || initialState is Screen.Player) {
                 slideIntoContainer(
                     towards = AnimatedContentTransitionScope.SlideDirection.Up,
@@ -152,7 +185,6 @@ fun AppNavigation() {
                     animationSpec = tween(300)
                 )
             } else {
-                // Fade pour les autres transitions
                 fadeIn(animationSpec = tween(300)) togetherWith
                         fadeOut(animationSpec = tween(300))
             }
@@ -164,7 +196,10 @@ fun AppNavigation() {
                 LibraryScreen(
                     playerViewModel = playerViewModel,
                     initialTab = selectedLibraryTab,
-                    onTabChanged = { newTab -> selectedLibraryTab = newTab },
+                    onTabChanged = { newTab ->
+                        selectedLibraryTab = newTab
+                        Timber.d("Tab changed to: $newTab")
+                    },
                     onSongClick = { song, allSongs ->
                         val startIndex = allSongs.indexOf(song)
                         playerViewModel.handleIntent(
@@ -173,68 +208,82 @@ fun AppNavigation() {
                                 startIndex = startIndex
                             )
                         )
-                        currentScreen = Screen.Player
+                        navigateTo(Screen.Player)
                     },
                     onPlaylistClick = { playlist ->
-                        selectedLibraryTab = 3 // Playlists tab
-                        currentScreen = Screen.PlaylistDetail(playlist)
+                        selectedLibraryTab = 3
+                        navigateTo(Screen.PlaylistDetail(playlist))
                     },
                     onAlbumClick = { album ->
-                        selectedLibraryTab = 4 // Albums tab
-                        currentScreen = Screen.AlbumDetail(album)
+                        selectedLibraryTab = 4
+                        navigateTo(Screen.AlbumDetail(album))
                     },
                     onArtistClick = { artist ->
-                        selectedLibraryTab = 5 // Artists tab
-                        currentScreen = Screen.ArtistDetail(artist)
+                        selectedLibraryTab = 5
+                        navigateTo(Screen.ArtistDetail(artist))
                     },
                     onMiniPlayerClick = {
-                        currentScreen = Screen.Player
+                        navigateTo(Screen.Player)
                     }
                 )
             }
+
             Screen.Player -> {
                 PlayerScreen(
                     viewModel = playerViewModel,
                     onNavigateBack = {
-                        currentScreen = Screen.Library
+                        navigateBack()
                     },
                     onQueueClick = {
-                        currentScreen = Screen.Queue
+                        navigateTo(Screen.Queue)
                     }
                 )
             }
+
             is Screen.PlaylistDetail -> {
                 PlaylistDetailScreen(
                     playlist = screen.playlist,
                     playerViewModel = playerViewModel,
                     onNavigateBack = {
-                        currentScreen = Screen.Library
+                        navigateBack()
+                    },
+                    onMiniPlayerClick = {
+                        navigateTo(Screen.Player)
                     }
                 )
             }
+
             is Screen.AlbumDetail -> {
                 AlbumDetailScreen(
                     album = screen.album,
                     playerViewModel = playerViewModel,
                     onNavigateBack = {
-                        currentScreen = Screen.Library
+                        navigateBack()
+                    },
+                    onMiniPlayerClick = {
+                        navigateTo(Screen.Player)
                     }
                 )
             }
+
             is Screen.ArtistDetail -> {
                 ArtistDetailScreen(
                     artist = screen.artist,
                     playerViewModel = playerViewModel,
                     onNavigateBack = {
-                        currentScreen = Screen.Library
+                        navigateBack()
+                    },
+                    onMiniPlayerClick = {
+                        navigateTo(Screen.Player)
                     }
                 )
             }
+
             Screen.Queue -> {
                 QueueScreen(
                     viewModel = playerViewModel,
                     onNavigateBack = {
-                        currentScreen = Screen.Player
+                        navigateBack()
                     }
                 )
             }
