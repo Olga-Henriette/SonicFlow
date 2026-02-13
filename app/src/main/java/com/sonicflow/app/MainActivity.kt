@@ -7,66 +7,52 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
-import com.sonicflow.app.core.domain.model.Song
-import com.sonicflow.app.core.domain.model.Playlist
-import com.sonicflow.app.core.domain.usecase.GetPlaylistSongsUseCase
-import com.sonicflow.app.core.player.service.MusicService
-import com.sonicflow.app.core.ui.theme.SonicFlowTheme
 import com.sonicflow.app.core.domain.model.Album
 import com.sonicflow.app.core.domain.model.Artist
-import com.sonicflow.app.feature.library.presentation.ArtistDetailScreen
-import com.sonicflow.app.feature.library.presentation.ArtistsScreen
-import com.sonicflow.app.feature.player.presentation.QueueScreen
-import com.sonicflow.app.feature.library.presentation.AlbumDetailScreen
+import com.sonicflow.app.core.domain.model.Playlist
+import com.sonicflow.app.core.player.service.MusicService
+import com.sonicflow.app.core.ui.theme.SonicFlowTheme
+import com.sonicflow.app.feature.library.presentation.*
+import com.sonicflow.app.feature.player.presentation.*
 import com.sonicflow.app.feature.playlist.presentation.PlaylistDetailScreen
-import com.sonicflow.app.feature.library.presentation.LibraryScreen
-import com.sonicflow.app.feature.player.presentation.PlayerIntent
-import com.sonicflow.app.feature.player.presentation.PlayerScreen
-import com.sonicflow.app.feature.player.presentation.PlayerViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
-import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private lateinit var controllerFuture: ListenableFuture<MediaController>
-    private val controller: MediaController?
-        get() = if (controllerFuture.isDone) controllerFuture.get() else null
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            setupUI()
-        } else {
-            setupUI()
-        }
+    ) {
+        setupUI()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
 
-        // Démarrer le service
+        // Edge-to-edge activé
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
         startMusicService()
-
-        // Connecter au MediaController
         initializeMediaController()
-
         requestAudioPermission()
     }
 
@@ -88,9 +74,7 @@ class MainActivity : ComponentActivity() {
 
         controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
         controllerFuture.addListener(
-            {
-                Timber.d("MediaController connected")
-            },
+            { Timber.d("MediaController connected") },
             MoreExecutors.directExecutor()
         )
     }
@@ -112,9 +96,26 @@ class MainActivity : ComponentActivity() {
     private fun setupUI() {
         setContent {
             SonicFlowTheme {
+
+                val view = LocalView.current
+                val colorScheme = MaterialTheme.colorScheme
+
+                // Gestion automatique couleur icônes status bar
+                SideEffect {
+                    val window = (view.context as ComponentActivity).window
+                    val controller = WindowCompat.getInsetsController(window, view)
+
+                    window.statusBarColor = android.graphics.Color.TRANSPARENT
+                    window.navigationBarColor = android.graphics.Color.TRANSPARENT
+
+                    val isLight = colorScheme.background.luminance() > 0.5f
+                    controller.isAppearanceLightStatusBars = isLight
+                    controller.isAppearanceLightNavigationBars = isLight
+                }
+
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = colorScheme.background
                 ) {
                     AppNavigation()
                 }
