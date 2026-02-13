@@ -55,8 +55,7 @@ interface MusicRepository {
     fun getFavoriteSongs(): Flow<List<Song>>
 
     // RECENT / STATS
-
-    suspend fun incrementPlayCount(songId: Long)
+    suspend fun incrementPlayCount(songId: Long, playDuration: Long = 0)
     fun getRecentlyPlayed(limit: Int = 20): Flow<List<Song>>
     fun getMostPlayed(limit: Int = 20): Flow<List<Song>>
 }

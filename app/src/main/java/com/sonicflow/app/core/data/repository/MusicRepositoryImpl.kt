@@ -224,10 +224,9 @@ class MusicRepositoryImpl @Inject constructor(
         }
     }
 
-    // RECENT / STATS
 
-    override suspend fun incrementPlayCount(songId: Long) {
-        playHistoryDao.incrementPlayCount(songId)
+    override suspend fun incrementPlayCount(songId: Long, playDuration: Long) {
+        playHistoryDao.incrementPlayCount(songId, playDuration)
     }
 
     override fun getRecentlyPlayed(limit: Int): Flow<List<Song>> = flow {

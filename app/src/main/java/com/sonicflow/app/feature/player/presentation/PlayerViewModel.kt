@@ -46,18 +46,18 @@ class PlayerViewModel @Inject constructor(
     private var _originalQueue: List<Song> = emptyList()
     private var _originalIndex: Int = 0
 
+    private var songStartTime: Long = 0
+    private var lastSongId: Long? = null
+
     init {
-        // Observer les changements du PlayerController
         observePlayerController()
-        // Démarrer la mise à jour de la position
         startPositionUpdates()
 
-        // Écouter la fin de chanson
         playerController.onSongEnded = {
+            saveSongPlayDuration()
             handleIntent(PlayerIntent.Next)
         }
 
-        // Écouter la fin du timer
         sleepTimerManager.onTimerFinished = {
             playerController.pause()
         }
@@ -65,20 +65,35 @@ class PlayerViewModel @Inject constructor(
         playerController.onMediaItemTransition = { newIndex ->
             val currentState = _state.value
             if (newIndex < currentState.queue.size) {
+                saveSongPlayDuration()
+
                 _state.update {
                     it.copy(
                         currentIndex = newIndex,
                         currentSong = currentState.queue[newIndex]
                     )
                 }
+
+                songStartTime = System.currentTimeMillis()
+                lastSongId = currentState.queue[newIndex].id
             }
         }
     }
 
-    // Flow pour le timer
+    private fun saveSongPlayDuration() {
+        val songId = lastSongId ?: return
+        val duration = System.currentTimeMillis() - songStartTime
+
+        if (duration >= 60000) { // Au moins 1 minute
+            viewModelScope.launch {
+                incrementPlayCountUseCase(songId, duration)
+                Timber.d("Saved play duration: ${duration}ms for song $songId")
+            }
+        }
+    }
+
     val sleepTimerMinutes: StateFlow<Int?> = sleepTimerManager.remainingMinutes
 
-    // Fonctions pour gérer le timer
     fun startSleepTimer(minutes: Int) {
         sleepTimerManager.startTimer(minutes)
         Timber.d("Sleep timer started: $minutes minutes")
@@ -98,12 +113,21 @@ class PlayerViewModel @Inject constructor(
             is PlayerIntent.PlayPause -> playerController.togglePlayPause()
             is PlayerIntent.Play -> playerController.play()
             is PlayerIntent.Pause -> playerController.pause()
-            is PlayerIntent.Next -> playNext()
-            is PlayerIntent.Previous -> playPrevious()
+            is PlayerIntent.Next -> {
+                saveSongPlayDuration()
+                playNext()
+            }
+            is PlayerIntent.Previous -> {
+                saveSongPlayDuration()
+                playPrevious()
+            }
             is PlayerIntent.SeekTo -> playerController.seekTo(intent.position)
             is PlayerIntent.AddToQueue -> addToQueue(intent.song)
             is PlayerIntent.RemoveFromQueue -> removeFromQueue(intent.index)
-            is PlayerIntent.ClearQueue -> clearQueue()
+            is PlayerIntent.ClearQueue -> {
+                saveSongPlayDuration()
+                clearQueue()
+            }
             is PlayerIntent.ToggleShuffle -> toggleShuffle()
             is PlayerIntent.ToggleRepeat -> toggleRepeat()
             is PlayerIntent.ToggleFavorite -> toggleFavorite(intent.songId)
@@ -112,9 +136,6 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Observer les changements du PlayerController
-     */
     private fun observePlayerController() {
         viewModelScope.launch {
             playerController.isPlaying.collect { isPlaying ->
@@ -153,10 +174,9 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Jouer une chanson
-     */
     private fun playSong(song: Song) {
+        saveSongPlayDuration()
+
         Timber.d("Playing song: ${song.title}")
 
         playerController.setQueue(listOf(song), 0)
@@ -168,17 +188,19 @@ class PlayerViewModel @Inject constructor(
                 currentIndex = 0
             )
         }
+        songStartTime = System.currentTimeMillis()
+        lastSongId = song.id
+
         // Incrémenter le compteur de lecture
         viewModelScope.launch {
             incrementPlayCountUseCase(song.id)
         }
     }
 
-    /**
-     * Jouer une queue de chansons
-     */
     private fun playQueue(songs: List<Song>, startIndex: Int) {
         if (songs.isEmpty()) return
+
+        saveSongPlayDuration()
 
         val index = startIndex.coerceIn(0, songs.lastIndex)
 
@@ -191,6 +213,9 @@ class PlayerViewModel @Inject constructor(
                 currentSong = songs[index]
             )
         }
+
+        songStartTime = System.currentTimeMillis()
+        lastSongId = songs[index].id
 
         viewModelScope.launch {
             incrementPlayCountUseCase(songs[index].id)
@@ -416,6 +441,7 @@ class PlayerViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        saveSongPlayDuration()
         positionUpdateJob?.cancel()
     }
 }

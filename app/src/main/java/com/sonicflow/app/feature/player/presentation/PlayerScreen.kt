@@ -81,7 +81,7 @@ fun PlayerScreen(
                 )
                 localPalette = palette
                 onAlbumPaletteChange(palette)
-                Timber.d("🎨 Palette extracted: ${palette?.primary}")
+                Timber.d("Palette extracted: ${palette?.primary}")
             }
         }
     }

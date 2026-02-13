@@ -9,5 +9,6 @@ data class PlayHistoryEntity(
     val id: Long = 0,
     val songId: Long,
     val playedAt: Long,
-    val playCount: Int = 1
+    val playCount: Int = 1,
+    val playDuration: Long = 0
 )

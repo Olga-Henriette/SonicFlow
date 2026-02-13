@@ -6,6 +6,7 @@ import com.sonicflow.app.core.common.Constants
 import com.sonicflow.app.core.data.local.dao.FavoriteDao
 import com.sonicflow.app.core.data.local.dao.PlayHistoryDao
 import com.sonicflow.app.core.data.local.dao.PlaylistDao
+import com.sonicflow.app.core.data.local.database.MIGRATION_1_2
 import com.sonicflow.app.core.data.local.database.SonicFlowDatabase
 import dagger.Module
 import dagger.Provides
@@ -36,7 +37,8 @@ object DatabaseModule {
             SonicFlowDatabase::class.java,
             Constants.DATABASE_NAME
         )
-            .fallbackToDestructiveMigration() // ⚠️ Dev seulement, à retirer en prod
+            .addMigrations(MIGRATION_1_2)
+            .fallbackToDestructiveMigration() // Dev
             .build()
     }
 

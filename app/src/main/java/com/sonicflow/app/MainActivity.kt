@@ -47,10 +47,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Edge-to-edge activé
         WindowCompat.setDecorFitsSystemWindows(window, false)
-
         startMusicService()
         initializeMediaController()
         requestAudioPermission()
@@ -71,7 +68,6 @@ class MainActivity : ComponentActivity() {
             this,
             ComponentName(this, MusicService::class.java)
         )
-
         controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
         controllerFuture.addListener(
             { Timber.d("MediaController connected") },
@@ -96,18 +92,14 @@ class MainActivity : ComponentActivity() {
     private fun setupUI() {
         setContent {
             SonicFlowTheme {
-
                 val view = LocalView.current
                 val colorScheme = MaterialTheme.colorScheme
 
-                // Gestion automatique couleur icônes status bar
                 SideEffect {
                     val window = (view.context as ComponentActivity).window
                     val controller = WindowCompat.getInsetsController(window, view)
-
                     window.statusBarColor = android.graphics.Color.TRANSPARENT
                     window.navigationBarColor = android.graphics.Color.TRANSPARENT
-
                     val isLight = colorScheme.background.luminance() > 0.5f
                     controller.isAppearanceLightStatusBars = isLight
                     controller.isAppearanceLightNavigationBars = isLight
@@ -125,49 +117,34 @@ class MainActivity : ComponentActivity() {
 }
 
 sealed class Screen {
-    data object Library : Screen()
+    data class Library(val tab: Int = 0) : Screen()
     data object Player : Screen()
-    data class PlaylistDetail(val playlist: Playlist) : Screen()
-    data class AlbumDetail(val album: Album) : Screen()
-    data class ArtistDetail(val artist: Artist) : Screen()
+    data class PlaylistDetail(val playlist: Playlist, val sourceTab: Int) : Screen()
+    data class AlbumDetail(val album: Album, val sourceTab: Int) : Screen()
+    data class ArtistDetail(val artist: Artist, val sourceTab: Int) : Screen()
     data object Queue : Screen()
 }
 
 @Composable
 fun AppNavigation() {
     var navigationStack by remember {
-        mutableStateOf(listOf<Screen>(Screen.Library))
+        mutableStateOf(listOf<Screen>(Screen.Library(tab = 0)))
     }
-    var selectedLibraryTab by remember { mutableIntStateOf(0) }
     val playerViewModel: PlayerViewModel = hiltViewModel()
 
-    LaunchedEffect(navigationStack) {
-        Timber.d("Navigation Stack: ${navigationStack.joinToString(" → ") {
-            when(it) {
-                is Screen.Library -> "Library(tab=$selectedLibraryTab)"
-                is Screen.Player -> "Player"
-                is Screen.PlaylistDetail -> "PlaylistDetail(${it.playlist.name})"
-                is Screen.AlbumDetail -> "AlbumDetail(${it.album.name})"
-                is Screen.ArtistDetail -> "ArtistDetail(${it.artist.name})"
-                is Screen.Queue -> "Queue"
-            }
-        }}")
+    val currentLibraryTab = remember(navigationStack) {
+        (navigationStack.last() as? Screen.Library)?.tab ?: 0
     }
 
-    // Fonction pour naviguer vers un écran
     fun navigateTo(screen: Screen) {
         navigationStack = navigationStack + screen
-        Timber.d("➡️ Navigating to: $screen")
+        Timber.d("→ Navigating to: $screen")
     }
 
-    // Fonction pour revenir en arrière
     fun navigateBack() {
         if (navigationStack.size > 1) {
-            val previous = navigationStack[navigationStack.size - 2]
             navigationStack = navigationStack.dropLast(1)
-            Timber.d("Navigating back to: $previous")
-        } else {
-            Timber.d("Already at root, cannot go back")
+            Timber.d("← Back to: ${navigationStack.last()}")
         }
     }
 
@@ -192,13 +169,12 @@ fun AppNavigation() {
         label = "screen transition"
     ) { screen ->
         when (screen) {
-            Screen.Library -> {
+            is Screen.Library -> {
                 LibraryScreen(
                     playerViewModel = playerViewModel,
-                    initialTab = selectedLibraryTab,
+                    initialTab = screen.tab,
                     onTabChanged = { newTab ->
-                        selectedLibraryTab = newTab
-                        Timber.d("Tab changed to: $newTab")
+                        navigationStack = navigationStack.dropLast(1) + Screen.Library(tab = newTab)
                     },
                     onSongClick = { song, allSongs ->
                         val startIndex = allSongs.indexOf(song)
@@ -211,16 +187,13 @@ fun AppNavigation() {
                         navigateTo(Screen.Player)
                     },
                     onPlaylistClick = { playlist ->
-                        selectedLibraryTab = 3
-                        navigateTo(Screen.PlaylistDetail(playlist))
+                        navigateTo(Screen.PlaylistDetail(playlist, sourceTab = screen.tab))
                     },
                     onAlbumClick = { album ->
-                        selectedLibraryTab = 4
-                        navigateTo(Screen.AlbumDetail(album))
+                        navigateTo(Screen.AlbumDetail(album, sourceTab = screen.tab))
                     },
                     onArtistClick = { artist ->
-                        selectedLibraryTab = 5
-                        navigateTo(Screen.ArtistDetail(artist))
+                        navigateTo(Screen.ArtistDetail(artist, sourceTab = screen.tab))
                     },
                     onMiniPlayerClick = {
                         navigateTo(Screen.Player)
@@ -231,12 +204,8 @@ fun AppNavigation() {
             Screen.Player -> {
                 PlayerScreen(
                     viewModel = playerViewModel,
-                    onNavigateBack = {
-                        navigateBack()
-                    },
-                    onQueueClick = {
-                        navigateTo(Screen.Queue)
-                    }
+                    onNavigateBack = { navigateBack() },
+                    onQueueClick = { navigateTo(Screen.Queue) }
                 )
             }
 
@@ -244,12 +213,8 @@ fun AppNavigation() {
                 PlaylistDetailScreen(
                     playlist = screen.playlist,
                     playerViewModel = playerViewModel,
-                    onNavigateBack = {
-                        navigateBack()
-                    },
-                    onMiniPlayerClick = {
-                        navigateTo(Screen.Player)
-                    }
+                    onNavigateBack = { navigateBack() },
+                    onMiniPlayerClick = { navigateTo(Screen.Player) }
                 )
             }
 
@@ -257,12 +222,8 @@ fun AppNavigation() {
                 AlbumDetailScreen(
                     album = screen.album,
                     playerViewModel = playerViewModel,
-                    onNavigateBack = {
-                        navigateBack()
-                    },
-                    onMiniPlayerClick = {
-                        navigateTo(Screen.Player)
-                    }
+                    onNavigateBack = { navigateBack() },
+                    onMiniPlayerClick = { navigateTo(Screen.Player) }
                 )
             }
 
@@ -270,21 +231,15 @@ fun AppNavigation() {
                 ArtistDetailScreen(
                     artist = screen.artist,
                     playerViewModel = playerViewModel,
-                    onNavigateBack = {
-                        navigateBack()
-                    },
-                    onMiniPlayerClick = {
-                        navigateTo(Screen.Player)
-                    }
+                    onNavigateBack = { navigateBack() },
+                    onMiniPlayerClick = { navigateTo(Screen.Player) }
                 )
             }
 
             Screen.Queue -> {
                 QueueScreen(
                     viewModel = playerViewModel,
-                    onNavigateBack = {
-                        navigateBack()
-                    }
+                    onNavigateBack = { navigateBack() }
                 )
             }
         }

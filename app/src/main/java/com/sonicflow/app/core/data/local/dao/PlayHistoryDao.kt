@@ -13,7 +13,15 @@ interface PlayHistoryDao {
     @Query("SELECT songId FROM play_history GROUP BY songId ORDER BY MAX(playedAt) DESC LIMIT :limit")
     fun getRecentlyPlayedSongIds(limit: Int): Flow<List<Long>>
 
-    @Query("SELECT songId FROM play_history GROUP BY songId ORDER BY SUM(playCount) DESC LIMIT :limit")
+    @Query("""
+        SELECT songId 
+        FROM play_history 
+        WHERE playDuration >= 60000
+        GROUP BY songId 
+        HAVING COUNT(*) >= 3
+        ORDER BY COUNT(*) DESC, SUM(playDuration) DESC 
+        LIMIT :limit
+    """)
     fun getMostPlayedSongIds(limit: Int): Flow<List<Long>>
 
     @Insert
@@ -23,12 +31,13 @@ interface PlayHistoryDao {
     suspend fun deleteOldHistory(timestamp: Long)
 
     @Transaction
-    suspend fun incrementPlayCount(songId: Long) {
+    suspend fun incrementPlayCount(songId: Long, playDuration: Long = 0) {
         insertPlayHistory(
             PlayHistoryEntity(
                 songId = songId,
                 playedAt = System.currentTimeMillis(),
-                playCount = 1
+                playCount = 1,
+                playDuration = playDuration
             )
         )
     }
