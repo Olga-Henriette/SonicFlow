@@ -30,6 +30,34 @@ interface PlayHistoryDao {
     @Query("DELETE FROM play_history WHERE playedAt < :timestamp")
     suspend fun deleteOldHistory(timestamp: Long)
 
+    @Query("DELETE FROM play_history")
+    suspend fun clearAllHistory()
+
+    @Query("""
+        DELETE FROM play_history 
+        WHERE songId IN (
+            SELECT songId 
+            FROM play_history 
+            GROUP BY songId 
+            ORDER BY MAX(playedAt) DESC 
+            LIMIT :limit
+        )
+    """)
+    suspend fun clearRecentlyPlayed(limit: Int = 10)
+
+    @Query("""
+        DELETE FROM play_history 
+        WHERE songId IN (
+            SELECT songId 
+            FROM play_history 
+            WHERE playDuration >= 60000
+            GROUP BY songId 
+            HAVING COUNT(*) >= 3
+            ORDER BY COUNT(*) DESC 
+            LIMIT :limit
+        )
+    """)
+    suspend fun clearMostPlayed(limit: Int = 10)
     @Transaction
     suspend fun incrementPlayCount(songId: Long, playDuration: Long = 0) {
         insertPlayHistory(

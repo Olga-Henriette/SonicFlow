@@ -253,4 +253,17 @@ class MusicRepositoryImpl @Inject constructor(
             }
         }
     }
+
+
+    override suspend fun clearAllHistory() {
+        playHistoryDao.clearAllHistory()
+    }
+
+    override suspend fun clearRecentlyPlayed() {
+        playHistoryDao.clearRecentlyPlayed()
+    }
+
+    override suspend fun clearMostPlayed() {
+        playHistoryDao.clearMostPlayed()
+    }
 }

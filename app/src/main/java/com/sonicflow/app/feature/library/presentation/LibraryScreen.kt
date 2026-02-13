@@ -195,7 +195,7 @@ fun LibraryScreen(
                 isPlaying = playerState.isPlaying,
                 currentPosition = playerState.currentPosition,
                 duration = playerState.duration,
-                albumPalette = albumPalette, // 🎨 Passer la palette
+                albumPalette = albumPalette,
                 onPlayPauseClick = {
                     playerViewModel.handleIntent(PlayerIntent.PlayPause)
                 },
@@ -316,7 +316,7 @@ fun TabStatsBar(
             // Statistiques
             Text(
                 text = when (currentTab) {
-                    0 -> "For You"
+                    0 -> "For You : Your personalized music"
                     1 -> "$songsCount songs"
                     2 -> "$favoritesCount favorites"
                     3 -> "$playlistsCount playlists"

@@ -1,5 +1,6 @@
 package com.sonicflow.app.feature.player.presentation
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -7,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +28,8 @@ fun QueueScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
+    var showClearDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -38,11 +42,13 @@ fun QueueScreen(
                 actions = {
                     if (state.queue.isNotEmpty()) {
                         IconButton(
-                            onClick = {
-                                viewModel.handleIntent(PlayerIntent.ClearQueue)
-                            }
+                            onClick = { showClearDialog = true }
                         ) {
-                            Icon(Icons.Default.ClearAll, "Clear queue")
+                            Icon(
+                                imageVector = Icons.Outlined.DeleteSweep,
+                                contentDescription = "Clear queue",
+                                tint = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
                 }
@@ -76,13 +82,11 @@ fun QueueScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // Header
                 QueueHeader(
                     currentIndex = state.currentIndex,
                     totalSongs = state.queue.size
                 )
 
-                // Queue list
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
                 ) {
@@ -109,6 +113,40 @@ fun QueueScreen(
                 }
             }
         }
+    }
+
+    if (showClearDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Outlined.DeleteSweep,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("Clear Queue") },
+            text = { Text("Remove all ${state.queue.size} songs from the queue? This will stop playback.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.handleIntent(PlayerIntent.ClearQueue)
+                        showClearDialog = false
+                        onNavigateBack()
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Clear All")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
@@ -160,16 +198,41 @@ fun QueueSongItem(
 ) {
     ListItem(
         headlineContent = {
-            Text(
-                text = song.title,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = if (isCurrentSong) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurface
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier.width(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isCurrentSong) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    } else {
+                        Text(
+                            text = position.toString(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-            )
+
+                Text(
+                    text = song.title,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (isCurrentSong) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
+                )
+            }
         },
         supportingContent = {
             Text(
@@ -177,39 +240,18 @@ fun QueueSongItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 color = if (isCurrentSong) {
-                    MaterialTheme.colorScheme.primary
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 }
             )
         },
         leadingContent = {
-            Box {
-                AlbumArtImage(
-                    albumId = song.albumId,
-                    contentDescription = song.album,
-                    size = 56.dp
-                )
-
-                // Indicateur de lecture
-                if (isCurrentSong) {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .background(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-            }
+            AlbumArtImage(
+                albumId = song.albumId,
+                contentDescription = song.album,
+                size = 56.dp
+            )
         },
         trailingContent = {
             Row(
@@ -222,10 +264,14 @@ fun QueueSongItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                IconButton(onClick = onRemoveClick) {
+                IconButton(
+                    onClick = onRemoveClick,
+                    modifier = Modifier.size(40.dp)
+                ) {
                     Icon(
-                        imageVector = Icons.Default.Remove,
-                        contentDescription = "Remove from queue"
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = "Remove from queue",
+                        tint = MaterialTheme.colorScheme.error
                     )
                 }
             }
@@ -235,7 +281,7 @@ fun QueueSongItem(
             .then(
                 if (isCurrentSong) {
                     Modifier.background(
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
                     )
                 } else {
                     Modifier

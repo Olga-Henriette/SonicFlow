@@ -58,4 +58,9 @@ interface MusicRepository {
     suspend fun incrementPlayCount(songId: Long, playDuration: Long = 0)
     fun getRecentlyPlayed(limit: Int = 20): Flow<List<Song>>
     fun getMostPlayed(limit: Int = 20): Flow<List<Song>>
+
+
+    suspend fun clearAllHistory()
+    suspend fun clearRecentlyPlayed()
+    suspend fun clearMostPlayed()
 }
