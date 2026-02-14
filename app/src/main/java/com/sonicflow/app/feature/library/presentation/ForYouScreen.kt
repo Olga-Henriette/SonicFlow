@@ -20,12 +20,15 @@ import com.sonicflow.app.core.domain.usecase.GetMostPlayedUseCase
 import com.sonicflow.app.core.domain.usecase.GetRecentlyPlayedUseCase
 import com.sonicflow.app.feature.player.presentation.PlayerIntent
 import com.sonicflow.app.feature.player.presentation.PlayerViewModel
+import androidx.compose.ui.platform.LocalContext
+import com.sonicflow.app.core.common.showToast
+import com.sonicflow.app.core.ui.components.ConfirmationDialog
 import kotlinx.coroutines.launch
-
 @Composable
 fun ForYouScreen(
     libraryViewModel: LibraryViewModel = hiltViewModel(),
     playerViewModel: PlayerViewModel = hiltViewModel(),
+    forYouViewModel: ForYouViewModel = hiltViewModel(),
     getMostPlayedUseCase: GetMostPlayedUseCase,
     getRecentlyPlayedUseCase: GetRecentlyPlayedUseCase,
     clearPlayHistoryUseCase: ClearPlayHistoryUseCase = hiltViewModel<ForYouViewModel>().clearPlayHistoryUseCase,
@@ -33,6 +36,7 @@ fun ForYouScreen(
     modifier: Modifier = Modifier
 ) {
     val allSongs by libraryViewModel.songs.collectAsState()
+    val context = LocalContext.current
 
     val recentlyPlayed by getRecentlyPlayedUseCase(10)
         .collectAsState(initial = emptyList())
@@ -156,20 +160,38 @@ fun ForYouScreen(
         }
     }
 
-    if (showClearDialog) {
-        ClearHistoryDialog(
-            section = sectionToClear,
-            onConfirm = {
+    if (showClearDialog && sectionToClear != null) {
+        val (title, message) = when (sectionToClear) {
+            ClearSection.ALL -> "Clear All History" to "Remove all play history? This will clear Recently Played and Most Played."
+            ClearSection.RECENTLY_PLAYED -> "Clear Recently Played" to "Remove all songs from Recently Played?"
+            ClearSection.MOST_PLAYED -> "Clear Most Played" to "Remove all songs from Most Played?"
+            else -> "" to ""
+        }
 
+        ConfirmationDialog(
+            title = title,
+            message = message,
+            icon = Icons.Outlined.DeleteSweep,
+            confirmText = "Clear",
+            isDestructive = true,
+            onConfirm = {
                 scope.launch {
                     when (sectionToClear) {
-                        ClearSection.ALL -> clearPlayHistoryUseCase.clearAll()
-                        ClearSection.RECENTLY_PLAYED -> clearPlayHistoryUseCase.clearRecentlyPlayed()
-                        ClearSection.MOST_PLAYED -> clearPlayHistoryUseCase.clearMostPlayed()
+                        ClearSection.ALL -> {
+                            forYouViewModel.clearPlayHistoryUseCase.clearAll()
+                            context.showToast("History cleared")
+                        }
+                        ClearSection.RECENTLY_PLAYED -> {
+                            forYouViewModel.clearPlayHistoryUseCase.clearRecentlyPlayed()
+                            context.showToast("Recently played cleared")
+                        }
+                        ClearSection.MOST_PLAYED -> {
+                            forYouViewModel.clearPlayHistoryUseCase.clearMostPlayed()
+                            context.showToast("Most played cleared")
+                        }
                         null -> {}
                     }
                 }
-
                 showClearDialog = false
                 sectionToClear = null
             },
@@ -180,7 +202,6 @@ fun ForYouScreen(
         )
     }
 }
-
 enum class ClearSection {
     ALL,
     RECENTLY_PLAYED,

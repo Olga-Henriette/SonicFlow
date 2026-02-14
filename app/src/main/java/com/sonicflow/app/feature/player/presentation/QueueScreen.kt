@@ -19,6 +19,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.sonicflow.app.core.common.formatDuration
 import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.ui.components.AlbumArtImage
+import com.sonicflow.app.core.ui.components.ConfirmationDialog
 
 @Composable
 fun QueueScreen(
@@ -116,36 +117,18 @@ fun QueueScreen(
     }
 
     if (showClearDialog) {
-        AlertDialog(
-            onDismissRequest = { showClearDialog = false },
-            icon = {
-                Icon(
-                    imageVector = Icons.Outlined.DeleteSweep,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error
-                )
+        ConfirmationDialog(
+            title = "Clear Queue",
+            message = "Remove all ${state.queue.size} songs from the queue? This will stop playback.",
+            icon = Icons.Outlined.DeleteSweep,
+            confirmText = "Clear All",
+            isDestructive = true,
+            onConfirm = {
+                viewModel.handleIntent(PlayerIntent.ClearQueue)
+                showClearDialog = false
+                onNavigateBack()
             },
-            title = { Text("Clear Queue") },
-            text = { Text("Remove all ${state.queue.size} songs from the queue? This will stop playback.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.handleIntent(PlayerIntent.ClearQueue)
-                        showClearDialog = false
-                        onNavigateBack()
-                    },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text("Clear All")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearDialog = false }) {
-                    Text("Cancel")
-                }
-            }
+            onDismiss = { showClearDialog = false }
         )
     }
 }

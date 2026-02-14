@@ -17,6 +17,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.sonicflow.app.core.common.showToast
 import com.sonicflow.app.core.domain.model.Playlist
 import com.sonicflow.app.core.ui.components.AlbumArtImage
+import com.sonicflow.app.core.ui.components.ConfirmationDialog
 import com.sonicflow.app.feature.player.components.MiniPlayer
 import com.sonicflow.app.feature.player.presentation.PlayerIntent
 import com.sonicflow.app.feature.player.presentation.PlayerViewModel
@@ -139,32 +140,23 @@ fun PlaylistDetailScreen(
     }
     // Dialog de confirmation
     songToRemove?.let { song ->
-        AlertDialog(
-            onDismissRequest = { songToRemove = null },
-            title = { Text("Remove Song") },
-            text = { Text("Remove \"${song.title}\" from ${playlist.name}?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        playerViewModel.handleIntent(
-                            PlayerIntent.RemoveFromPlaylist(playlist.id, song.id)
-                        )
-                        context.showToast("Removed from ${playlist.name}")
-                        songToRemove = null
-                    }
-                ) {
-                    Text("Remove")
-                }
+        ConfirmationDialog(
+            title = "Remove Song",
+            message = "Remove \"${song.title}\" from ${playlist.name}?",
+            icon = Icons.Outlined.Delete,
+            confirmText = "Remove",
+            isDestructive = true,
+            onConfirm = {
+                playerViewModel.handleIntent(
+                    PlayerIntent.RemoveFromPlaylist(playlist.id, song.id)
+                )
+                context.showToast("Removed from ${playlist.name}")
+                songToRemove = null
             },
-            dismissButton = {
-                TextButton(onClick = { songToRemove = null }) {
-                    Text("Cancel")
-                }
-            }
+            onDismiss = { songToRemove = null }
         )
     }
 }
-
 @Composable
 fun PlaylistHeader(
     playlist: Playlist,
