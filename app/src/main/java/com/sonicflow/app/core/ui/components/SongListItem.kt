@@ -7,23 +7,24 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
 import com.sonicflow.app.core.common.formatDuration
 import com.sonicflow.app.core.domain.model.Song
+import kotlinx.coroutines.launch
 
-/**
- * Composant réutilisable pour afficher une chanson
- * Gère l'état de lecture, animations, et actions
- */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SongListItem(
@@ -36,6 +37,16 @@ fun SongListItem(
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
+
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.98f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "press scale"
+    )
 
     ListItem(
         headlineContent = {
@@ -135,7 +146,22 @@ fun SongListItem(
             }
         },
         modifier = modifier
-            .clickable(onClick = onSongClick)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() }
+            ) {
+                isPressed = true
+                onSongClick()
+
+                GlobalScope.launch {
+                    delay(100)
+                    isPressed = false
+                }
+            }
+
             .then(
                 if (isCurrentlyPlaying) {
                     Modifier.background(

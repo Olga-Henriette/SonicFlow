@@ -13,6 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sonicflow.app.core.common.AlbumPalette
 import com.sonicflow.app.core.common.formatDuration
@@ -90,7 +92,6 @@ fun LibraryScreen(
         }
     }
 
-    // État pour pull-to-refresh
     var isRefreshing by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -125,9 +126,21 @@ fun LibraryScreen(
                     )
                 }
 
+
                 ScrollableTabRow(
                     selectedTabIndex = pagerState.currentPage,
-                    edgePadding = 0.dp
+                    edgePadding = 0.dp,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    indicator = { tabPositions ->
+                        if (tabPositions.isNotEmpty()) {
+                            TabRowDefaults.SecondaryIndicator(
+                                modifier = Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
+                                height = 3.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 ) {
                     tabs.forEachIndexed { index, title ->
                         Tab(
@@ -141,7 +154,19 @@ fun LibraryScreen(
                                 Text(
                                     text = title,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Visible
+                                    overflow = TextOverflow.Visible,
+                                    style = if (pagerState.currentPage == index) {
+                                        MaterialTheme.typography.labelLarge.copy(
+                                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                                        )
+                                    } else {
+                                        MaterialTheme.typography.labelLarge
+                                    },
+                                    color = if (pagerState.currentPage == index) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
                                 )
                             }
                         )

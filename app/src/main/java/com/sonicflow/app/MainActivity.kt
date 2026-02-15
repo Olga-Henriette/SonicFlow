@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.sonicflow.app.core.ui.animation.TransitionAnimations
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -149,21 +150,37 @@ fun AppNavigation() {
     }
 
     val currentScreen = navigationStack.last()
+    val previousScreen = navigationStack.getOrNull(navigationStack.size - 2)
 
     AnimatedContent(
         targetState = currentScreen,
         transitionSpec = {
-            if (targetState is Screen.Player || initialState is Screen.Player) {
-                slideIntoContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Up,
-                    animationSpec = tween(300)
-                ) togetherWith slideOutOfContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Down,
-                    animationSpec = tween(300)
-                )
-            } else {
-                fadeIn(animationSpec = tween(300)) togetherWith
-                        fadeOut(animationSpec = tween(300))
+            when {
+                targetState is Screen.Player && initialState is Screen.Library -> {
+                    TransitionAnimations.slideVertical()
+                }
+                initialState is Screen.Player && targetState is Screen.Library -> {
+                    TransitionAnimations.slideVertical()
+                }
+                (targetState is Screen.PlaylistDetail ||
+                        targetState is Screen.AlbumDetail ||
+                        targetState is Screen.ArtistDetail) && initialState is Screen.Library -> {
+                    TransitionAnimations.slideHorizontalWithScale()
+                }
+                (initialState is Screen.PlaylistDetail ||
+                        initialState is Screen.AlbumDetail ||
+                        initialState is Screen.ArtistDetail) && targetState is Screen.Library -> {
+                    TransitionAnimations.slideBack()
+                }
+                targetState is Screen.Queue && initialState is Screen.Player -> {
+                    TransitionAnimations.slideHorizontalWithScale()
+                }
+                initialState is Screen.Queue && targetState is Screen.Player -> {
+                    TransitionAnimations.slideBack()
+                }
+                else -> {
+                    TransitionAnimations.fade()
+                }
             }
         },
         label = "screen transition"
