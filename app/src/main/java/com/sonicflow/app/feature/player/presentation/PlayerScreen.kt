@@ -27,6 +27,8 @@ import com.sonicflow.app.core.common.showToast
 import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.ui.components.CircularAlbumArt
 import com.sonicflow.app.feature.player.components.SleepTimerDialog
+import com.sonicflow.app.feature.player.components.WaveformVisualizer
+import com.sonicflow.app.feature.player.components.LyricsView
 import com.sonicflow.app.feature.playlist.components.AddToPlaylistDialog
 import com.sonicflow.app.feature.playlist.presentation.PlaylistViewModel
 import kotlinx.coroutines.launch
@@ -48,6 +50,7 @@ fun PlayerScreen(
     var localPalette by remember { mutableStateOf<AlbumPalette?>(null) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var showLyrics by remember { mutableStateOf(false) }
+    var showWaveform by remember { mutableStateOf(false) }
 
     // Extraction palette
     LaunchedEffect(state.currentSong?.albumId) {
@@ -136,6 +139,7 @@ fun PlayerScreen(
                 if (showLyrics) {
                     // Vue Lyrics (TODO)
                     LyricsView(
+                        song = state.currentSong,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
@@ -150,6 +154,8 @@ fun PlayerScreen(
                         isFavorite = state.currentSong?.isFavorite ?: false,
                         primaryColor = primaryColor,
                         sleepTimerMinutes = sleepTimerMinutes,
+                        showWaveform = showWaveform,
+                        onToggleWaveform = { showWaveform = !showWaveform },
                         onPlayPause = {
                             viewModel.handleIntent(PlayerIntent.PlayPause)
                         },
@@ -250,6 +256,8 @@ fun MusicView(
     isFavorite: Boolean,
     primaryColor: Color,
     sleepTimerMinutes: Int?,
+    showWaveform: Boolean,
+    onToggleWaveform: () -> Unit,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
@@ -273,14 +281,42 @@ fun MusicView(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Pochette circulaire avec bordure animée
-        CircularAlbumArt(
-            albumId = song.albumId,
-            isPlaying = isPlaying,
-            primaryColor = primaryColor,
-            size = 280.dp,
-            modifier = Modifier.weight(1f, fill = false)
-        )
+        // Pochette circulaire OU Waveform
+        Box(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            if (showWaveform) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    WaveformVisualizer(
+                        isPlaying = isPlaying,
+                        primaryColor = primaryColor,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Petit artwork au centre
+                    CircularAlbumArt(
+                        albumId = song.albumId,
+                        isPlaying = isPlaying,
+                        primaryColor = primaryColor,
+                        size = 180.dp
+                    )
+                }
+            } else {
+                CircularAlbumArt(
+                    albumId = song.albumId,
+                    isPlaying = isPlaying,
+                    primaryColor = primaryColor,
+                    size = 280.dp
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
 
@@ -358,11 +394,20 @@ fun MusicView(
                 }
             }
 
-            // Waveform (TODO)
-            IconButton(onClick = { /* TODO */ }) {
+            // Waveform
+            IconButton(onClick = onToggleWaveform) {
                 Icon(
-                    imageVector = Icons.Outlined.GraphicEq,
-                    contentDescription = "Waveform"
+                    imageVector = if (showWaveform) {
+                        Icons.Default.Album
+                    } else {
+                        Icons.Outlined.GraphicEq
+                    },
+                    contentDescription = "Toggle Waveform",
+                    tint = if (showWaveform) {
+                        primaryColor
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                 )
             }
 

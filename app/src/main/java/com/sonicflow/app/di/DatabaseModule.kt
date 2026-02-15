@@ -2,6 +2,8 @@ package com.sonicflow.app.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.sonicflow.app.core.common.Constants
 import com.sonicflow.app.core.data.local.dao.FavoriteDao
 import com.sonicflow.app.core.data.local.dao.LyricsDao
@@ -24,6 +26,22 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
+
+    private val MIGRATION_1_2 = object : Migration(1, 2) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL("""
+                CREATE TABLE IF NOT EXISTS lyrics (
+                    songId INTEGER PRIMARY KEY NOT NULL,
+                    content TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    language TEXT NOT NULL DEFAULT 'en',
+                    isSynced INTEGER NOT NULL DEFAULT 0,
+                    lastModified INTEGER NOT NULL,
+                    isUserEdited INTEGER NOT NULL DEFAULT 0
+                )
+            """.trimIndent())
+        }
+    }
 
     /**
      * Fournit la Database Room
