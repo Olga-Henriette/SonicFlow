@@ -1,5 +1,3 @@
-// feature/library/presentation/AlbumDetailScreen.kt
-
 package com.sonicflow.app.feature.library.presentation
 
 import androidx.compose.foundation.layout.*

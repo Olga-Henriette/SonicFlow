@@ -1,5 +1,3 @@
-// feature/library/presentation/AlbumsScreen.kt
-
 package com.sonicflow.app.feature.library.presentation
 
 import androidx.compose.foundation.clickable
@@ -18,6 +16,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.sonicflow.app.feature.player.components.MiniPlayer
 import com.sonicflow.app.core.domain.model.Album
 import com.sonicflow.app.core.ui.components.AlbumArtImage
+import com.sonicflow.app.feature.library.components.AlbumGridItem
 
 @Composable
 fun AlbumsScreen(
@@ -25,20 +24,20 @@ fun AlbumsScreen(
     modifier: Modifier = Modifier
 ) {
     val viewModel: LibraryViewModel = hiltViewModel()
-
-    // Pour l'instant, on génère la liste d'albums depuis les chansons
     val songs by viewModel.songs.collectAsState()
+
     val albums = remember(songs) {
         songs
             .groupBy { it.albumId }
             .map { (albumId, albumSongs) ->
+                val firstSong = albumSongs.first()
                 Album(
                     id = albumId,
-                    name = albumSongs.first().album,
-                    artist = albumSongs.first().artist,
+                    name = firstSong .album,
+                    artist = firstSong .artist,
                     artistId = 0L, // TODO: récupérer depuis MediaStore
                     songCount = albumSongs.size,
-                    year = albumSongs.first().year
+                    year = firstSong .year
                 )
             }
             .sortedBy { it.name }
@@ -54,9 +53,9 @@ fun AlbumsScreen(
     } else {
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = modifier.fillMaxSize()
         ) {
             items(albums) { album ->
@@ -65,59 +64,6 @@ fun AlbumsScreen(
                     onClick = { onAlbumClick(album) }
                 )
             }
-        }
-    }
-}
-
-@Composable
-fun AlbumGridItem(
-    album: Album,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(8.dp)
-        ) {
-            // Album art
-            AlbumArtImage(
-                albumId = album.id,
-                contentDescription = album.name,
-                modifier = Modifier.fillMaxWidth(),
-                size = 160.dp
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Album name
-            Text(
-                text = album.name,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            // Artist
-            Text(
-                text = album.artist,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            // Song count
-            Text(
-                text = "${album.songCount} songs",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

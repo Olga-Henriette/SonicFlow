@@ -13,6 +13,7 @@ import com.sonicflow.app.core.domain.model.Album
 import com.sonicflow.app.core.domain.model.Artist
 import com.sonicflow.app.core.domain.model.Playlist
 import com.sonicflow.app.core.domain.model.Song
+import com.sonicflow.app.feature.library.components.SongsList
 import com.sonicflow.app.feature.player.presentation.PlayerViewModel
 import com.sonicflow.app.feature.playlist.presentation.PlaylistsScreen
 import kotlinx.coroutines.CoroutineScope
@@ -58,7 +59,7 @@ fun LibraryTabRow(
  * Contenu du pager de bibliothèque
  * Gère tous les onglets
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryPagerContent(
     pagerState: PagerState,

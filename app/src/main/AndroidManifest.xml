@@ -42,6 +42,18 @@
             </intent-filter>
         </service>
 
+        <receiver
+            android:name=".core.player.notification.NotificationActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="PREVIOUS" />
+                <action android:name="PLAY_PAUSE" />
+                <action android:name="NEXT" />
+                <action android:name="com.sonicflow.app.ACTION_FAVORITE" />
+                <action android:name="com.sonicflow.app.ACTION_CLOSE" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

@@ -184,4 +184,16 @@ class PlayerController @Inject constructor(
             _currentPosition.value = exoPlayer.currentPosition.coerceAtLeast(0)
         }
     }
+    
+    fun next() {
+        if (exoPlayer.hasNextMediaItem()) {
+            exoPlayer.seekToNextMediaItem()
+        }
+    }
+
+    fun previous() {
+        if (exoPlayer.hasPreviousMediaItem()) {
+            exoPlayer.seekToPreviousMediaItem()
+        }
+    }
 }

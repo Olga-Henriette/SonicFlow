@@ -1,4 +1,3 @@
-// core/player/service/MusicService.kt
 package com.sonicflow.app.core.player.service
 
 import android.app.PendingIntent
@@ -10,6 +9,7 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.sonicflow.app.MainActivity
 import com.sonicflow.app.core.player.controller.PlayerController
+import com.sonicflow.app.core.player.notification.MusicNotificationManager
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 import javax.inject.Inject
@@ -25,43 +25,45 @@ class MusicService : MediaSessionService() {
     @Inject
     lateinit var playerController: PlayerController
 
+    @Inject
+    lateinit var notificationManager: MusicNotificationManager
+
     private var mediaSession: MediaSession? = null
 
     override fun onCreate() {
         super.onCreate()
-        Timber.d("MusicService onCreate")
 
-        // Configurer les attributs audio
-        val audioAttributes = AudioAttributes.Builder()
-            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-            .setUsage(C.USAGE_MEDIA)
-            .build()
-
-        playerController.getExoPlayer().setAudioAttributes(audioAttributes, true)
-
-        // Créer le PendingIntent pour ouvrir l'app
-        val sessionActivityIntent = Intent(this, MainActivity::class.java)
-        val sessionActivityPendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            sessionActivityIntent,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            } else {
-                PendingIntent.FLAG_UPDATE_CURRENT
-            }
-        )
-
-        // Créer MediaSession
+        // Créer la MediaSession
         mediaSession = MediaSession.Builder(this, playerController.getExoPlayer())
-            .setSessionActivity(sessionActivityPendingIntent)
+            .setCallback(object : MediaSession.Callback {
+                override fun onConnect(
+                    session: MediaSession,
+                    controller: MediaSession.ControllerInfo
+                ): MediaSession.ConnectionResult {
+                    val connectionResult = super.onConnect(session, controller)
+                    return MediaSession.ConnectionResult.accept(
+                        connectionResult.availableSessionCommands,
+                        connectionResult.availablePlayerCommands
+                    )
+                }
+            })
             .build()
 
-        Timber.d("MediaSession created")
+        Timber.d("MusicService created with MediaSession")
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
         return mediaSession
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+
+        // Arrêter le service si aucune lecture en cours
+        val player = mediaSession?.player
+        if (player?.playWhenReady == false) {
+            stopSelf()
+        }
     }
 
     override fun onDestroy() {
@@ -72,5 +74,13 @@ class MusicService : MediaSessionService() {
         }
         super.onDestroy()
         Timber.d("MusicService destroyed")
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Démarrer en foreground
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // La notification sera gérée automatiquement par Media3
+        }
+        return super.onStartCommand(intent, flags, startId)
     }
 }

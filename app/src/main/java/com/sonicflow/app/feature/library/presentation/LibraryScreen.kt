@@ -1,72 +1,36 @@
 package com.sonicflow.app.feature.library.presentation
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Sort
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.ui.graphics.Color
-import com.sonicflow.app.core.ui.components.AlbumArtImage
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.sonicflow.app.core.common.AlbumPalette
 import com.sonicflow.app.core.common.formatDuration
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.ui.platform.LocalContext
-import com.sonicflow.app.core.common.showToast
-import com.sonicflow.app.feature.playlist.components.AddToPlaylistDialog
-import com.sonicflow.app.core.domain.model.Song
-import com.sonicflow.app.core.domain.model.Playlist
 import com.sonicflow.app.core.domain.model.Album
 import com.sonicflow.app.core.domain.model.Artist
-import com.sonicflow.app.core.domain.usecase.GetMostPlayedUseCase
-import com.sonicflow.app.core.domain.usecase.GetRecentlyPlayedUseCase
-import com.sonicflow.app.feature.playlist.presentation.PlaylistsScreen
+import com.sonicflow.app.core.domain.model.Playlist
+import com.sonicflow.app.core.domain.model.Song
+import com.sonicflow.app.core.ui.components.AlbumArtImage
+import com.sonicflow.app.feature.library.components.SearchTopBar
+import com.sonicflow.app.feature.library.components.SortDialog
+import com.sonicflow.app.feature.library.components.TabStatsBar
 import com.sonicflow.app.feature.player.components.MiniPlayer
 import com.sonicflow.app.feature.player.presentation.PlayerIntent
-import com.sonicflow.app.feature.player.presentation.PlayerState
 import com.sonicflow.app.feature.player.presentation.PlayerViewModel
-import com.sonicflow.app.feature.playlist.components.AddToPlaylistDialog
-import com.sonicflow.app.feature.playlist.presentation.CreatePlaylistDialog
 import com.sonicflow.app.feature.playlist.presentation.PlaylistViewModel
-import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
-import com.sonicflow.app.core.common.AlbumPalette
-import com.sonicflow.app.core.ui.components.SongListItem
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
@@ -85,6 +49,7 @@ fun LibraryScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val playerState by playerViewModel.state.collectAsState()
+    val sortOption by viewModel.sortOption.collectAsState()
 
     val albumCount by viewModel.albumCount.collectAsState()
     val artistCount by viewModel.artistCount.collectAsState()
@@ -104,11 +69,16 @@ fun LibraryScreen(
         onTabChanged(selectedTab)
     }
 
+    LaunchedEffect(pagerState.currentPage) {
+        onTabChanged(pagerState.currentPage)
+    }
+
     val favoriteSongs = songs.filter { it.isFavorite }
 
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
     var showDrawer by remember { mutableStateOf(false) }
+    var showSortDialog by remember { mutableStateOf(false) }
 
     val filteredSongs = if (searchQuery.isBlank()) {
         songs
@@ -185,7 +155,10 @@ fun LibraryScreen(
                     favoritesCount = favoriteSongs.size,
                     playlistsCount = playlistCount,
                     albumsCount = albumCount,
-                    artistsCount = artistCount
+                    artistsCount = artistCount,
+                    onSortClick = if (pagerState.currentPage in 1..2) {
+                        { showSortDialog = true }
+                    } else null
                 )
             }
         },
@@ -206,270 +179,43 @@ fun LibraryScreen(
             )
         }
     ) { paddingValues ->
-        // HorizontalPager
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) { page ->
-            PullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = {
-                    scope.launch {
-                        isRefreshing = true
-                        viewModel.loadSongs()
-                        kotlinx.coroutines.delay(1000)
-                        isRefreshing = false
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            ) {
-                when {
-                    isLoading && !isRefreshing -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    }
-                    error != null -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Error: $error",
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(16.dp)
-                            )
-                        }
-                    }
-                    else -> {
-                        when (page) {
-                            0 -> {
-                                val forYouViewModel: ForYouViewModel = hiltViewModel()
-                                ForYouScreen(
-                                    libraryViewModel = viewModel,
-                                    playerViewModel = playerViewModel,
-                                    getMostPlayedUseCase = forYouViewModel.getMostPlayedUseCase,
-                                    getRecentlyPlayedUseCase = forYouViewModel.getRecentlyPlayedUseCase,
-                                    onSongClick = onSongClick
-                                )
-                            }
-                            1 -> SongsList(
-                                songs = filteredSongs,
-                                playerViewModel = playerViewModel,
-                                currentSong = playerState.currentSong,
-                                isPlaying = playerState.isPlaying,
-                                onSongClick = onSongClick
-                            )
-                            2 -> SongsList(
-                                songs = favoriteSongs,
-                                playerViewModel = playerViewModel,
-                                currentSong = playerState.currentSong,
-                                isPlaying = playerState.isPlaying,
-                                onSongClick = onSongClick,
-                                emptyMessage = "No favorite songs yet"
-                            )
-                            3 -> PlaylistsScreen(
-                                onPlaylistClick = onPlaylistClick
-                            )
-                            4 -> AlbumsScreen(
-                                onAlbumClick = onAlbumClick
-                            )
-                            5 -> ArtistsScreen(
-                                onArtistClick = onArtistClick
-                            )
-                        }
-                    }
+        LibraryPagerContent(
+            pagerState = pagerState,
+            isLoading = isLoading,
+            isRefreshing = isRefreshing,
+            error = error,
+            filteredSongs = filteredSongs,
+            favoriteSongs = favoriteSongs,
+            playerViewModel = playerViewModel,
+            currentSong = playerState.currentSong,
+            isPlaying = playerState.isPlaying,
+            forYouViewModel = hiltViewModel(),
+            onSongClick = onSongClick,
+            onPlaylistClick = onPlaylistClick,
+            onAlbumClick = onAlbumClick,
+            onArtistClick = onArtistClick,
+            onRefresh = {
+                scope.launch {
+                    isRefreshing = true
+                    viewModel.loadSongs()
+                    kotlinx.coroutines.delay(1000)
+                    isRefreshing = false
                 }
-            }
-        }
-    }
-}
-
-
-@Composable
-fun TabStatsBar(
-    currentTab: Int,
-    songsCount: Int,
-    favoritesCount: Int,
-    playlistsCount: Int,
-    albumsCount: Int,
-    artistsCount: Int,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-        tonalElevation = 1.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Statistiques
-            Text(
-                text = when (currentTab) {
-                    0 -> "For You : Your personalized music"
-                    1 -> "$songsCount songs"
-                    2 -> "$favoritesCount favorites"
-                    3 -> "$playlistsCount playlists"
-                    4 -> "$albumsCount albums"
-                    5 -> "$artistsCount artists"
-                    else -> ""
-                },
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            // Tri
-            if (currentTab in 1..2) { // Songs et Favorites
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Sort,
-                        contentDescription = "Sort",
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "By name",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SearchTopBar(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    onCloseSearch: () -> Unit
-) {
-    TopAppBar(
-        title = {
-            TextField(
-                value = query,
-                onValueChange = onQueryChange,
-                placeholder = { Text("Search songs, artists, albums...") },
-                singleLine = true,
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        navigationIcon = {
-            IconButton(onClick = onCloseSearch) {
-                Icon(Icons.Default.ArrowBack, "Close search")
-            }
-        },
-        actions = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Default.Clear, "Clear")
-                }
-            }
-        }
-    )
-}
-
-// LibraryScreen.kt
-
-@Composable
-fun SongsList(
-    songs: List<Song>,
-    playerViewModel: PlayerViewModel,
-    currentSong: Song?,
-    isPlaying: Boolean,
-    playlistViewModel: PlaylistViewModel = hiltViewModel(),
-    onSongClick: (Song, List<Song>) -> Unit,
-    emptyMessage: String = "No songs found"
-) {
-    val playlists by playlistViewModel.playlists.collectAsState()
-    val context = LocalContext.current
-
-    var songToAddToPlaylist by remember { mutableStateOf<Song?>(null) }
-    var showCreatePlaylistDialog by remember { mutableStateOf(false) }
-
-    if (songs.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text = emptyMessage)
-        }
-    } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            items(songs, key = { it.id }) { song ->
-                SongListItem(
-                    song = song,
-                    isCurrentlyPlaying = song.id == currentSong?.id,
-                    isPlaying = isPlaying,
-                    onSongClick = { onSongClick(song, songs) },
-                    onFavoriteClick = {
-                        playerViewModel.handleIntent(
-                            PlayerIntent.ToggleFavorite(song.id)
-                        )
-                    },
-                    onMoreClick = {
-                        songToAddToPlaylist = song
-                    }
-                )
-            }
-        }
-    }
-
-    // Dialogs
-    songToAddToPlaylist?.let { song ->
-        AddToPlaylistDialog(
-            song = song,
-            playlists = playlists,
-            onDismiss = { songToAddToPlaylist = null },
-            onPlaylistSelected = { playlist ->
-                playerViewModel.handleIntent(
-                    PlayerIntent.AddToPlaylist(
-                        playlistId = playlist.id,
-                        songId = song.id
-                    )
-                )
-                context.showToast("Added to ${playlist.name}")
-                songToAddToPlaylist = null
             },
-            onCreateNewPlaylist = {
-                songToAddToPlaylist = null
-                showCreatePlaylistDialog = true
-            }
+            modifier = Modifier.padding(paddingValues)
         )
     }
-
-    if (showCreatePlaylistDialog) {
-        CreatePlaylistDialog(
-            onDismiss = { showCreatePlaylistDialog = false },
-            onConfirm = { name ->
-                playlistViewModel.createPlaylist(name)
-                showCreatePlaylistDialog = false
-            }
+    if (showSortDialog) {
+        SortDialog(
+            currentOption = sortOption,
+            onOptionSelected = { option ->
+                viewModel.setSortOption(option)
+            },
+            onDismiss = { showSortDialog = false }
         )
     }
 }
+
 @Composable
 fun SongItem(
     song: Song,
