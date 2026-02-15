@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.sonicflow.app.core.common.Constants
 import com.sonicflow.app.core.data.local.dao.FavoriteDao
+import com.sonicflow.app.core.data.local.dao.LyricsDao
 import com.sonicflow.app.core.data.local.dao.PlayHistoryDao
 import com.sonicflow.app.core.data.local.dao.PlaylistDao
 import com.sonicflow.app.core.data.local.database.MIGRATION_1_2
@@ -67,5 +68,11 @@ object DatabaseModule {
     @Singleton
     fun providePlayHistoryDao(database: SonicFlowDatabase): PlayHistoryDao {
         return database.playHistoryDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideLyricsDao(database: SonicFlowDatabase): LyricsDao {
+        return database.lyricsDao()
     }
 }
