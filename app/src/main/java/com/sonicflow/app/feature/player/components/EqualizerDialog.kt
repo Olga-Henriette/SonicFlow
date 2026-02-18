@@ -1,4 +1,3 @@
-// feature/player/components/EqualizerDialog.kt
 package com.sonicflow.app.feature.player.components
 
 import androidx.compose.animation.*
@@ -24,9 +23,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.sonicflow.app.core.player.controller.EqualizerController
 import com.sonicflow.app.feature.player.presentation.EqualizerViewModel
 
-/**
- * Dialog d'égaliseur professionnel
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EqualizerDialog(

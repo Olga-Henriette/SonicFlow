@@ -1,4 +1,3 @@
-// feature/player/presentation/EqualizerViewModel.kt
 package com.sonicflow.app.feature.player.presentation
 
 import androidx.lifecycle.ViewModel

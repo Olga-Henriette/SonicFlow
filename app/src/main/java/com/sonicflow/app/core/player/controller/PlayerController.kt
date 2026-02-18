@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -72,7 +73,7 @@ class PlayerController @Inject constructor(
         }
     }
 
-    // ExoPlayer instance (APRÈS playerListener)
+    // ExoPlayer instance
     private val exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build().apply {
         // Écouter les événements du player
         addListener(playerListener)
@@ -83,7 +84,6 @@ class PlayerController @Inject constructor(
 
 
     init {
-        // ⬇️ CORRIGÉ : Obtenir l'audioSessionId depuis exoPlayer
         exoPlayer.addListener(object : Player.Listener {
             @OptIn(UnstableApi::class)
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -152,6 +152,52 @@ class PlayerController @Inject constructor(
         exoPlayer.setMediaItems(mediaItems, startIndex, 0L)
         exoPlayer.prepare()
         exoPlayer.play()
+    }
+
+
+    /**
+     * Définir la vitesse de lecture (0.5x à 2.0x)
+     */
+    fun setPlaybackSpeed(speed: Float) {
+        try {
+            val constrainedSpeed = speed.coerceIn(0.25f, 3.0f)
+            val currentPitch = exoPlayer.playbackParameters.pitch
+
+            exoPlayer.playbackParameters = PlaybackParameters(constrainedSpeed, currentPitch)
+            Timber.d("Playback speed set to: ${constrainedSpeed}x")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to set playback speed")
+        }
+    }
+
+    /**
+     * Définir le pitch (0.5x à 2.0x)
+     */
+    fun setPitch(pitch: Float) {
+        try {
+            val constrainedPitch = pitch.coerceIn(0.25f, 3.0f)
+            val currentSpeed = exoPlayer.playbackParameters.speed
+
+            exoPlayer.playbackParameters = PlaybackParameters(currentSpeed, constrainedPitch)
+            Timber.d("Pitch set to: ${constrainedPitch}x")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to set pitch")
+        }
+    }
+
+    /**
+     * Obtenir les paramètres de lecture actuels
+     */
+    fun getPlaybackParameters(): PlaybackParameters {
+        return exoPlayer.playbackParameters
+    }
+
+    /**
+     * Réinitialiser pitch et speed
+     */
+    fun resetPlaybackParameters() {
+        exoPlayer.playbackParameters = PlaybackParameters.DEFAULT
+        Timber.d("Playback parameters reset")
     }
 
     /**

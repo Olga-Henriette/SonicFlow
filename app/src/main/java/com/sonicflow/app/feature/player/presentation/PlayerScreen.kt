@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +30,7 @@ import com.sonicflow.app.core.ui.components.CircularAlbumArt
 import com.sonicflow.app.feature.player.components.EqualizerDialog
 import com.sonicflow.app.feature.player.components.SleepTimerDialog
 import com.sonicflow.app.feature.player.components.WaveformVisualizer
+import com.sonicflow.app.feature.player.components.PlaybackControlsDialog
 import com.sonicflow.app.feature.player.components.LyricsView
 import com.sonicflow.app.feature.playlist.components.AddToPlaylistDialog
 import com.sonicflow.app.feature.playlist.presentation.PlaylistViewModel
@@ -269,6 +271,7 @@ fun MusicView(
     modifier: Modifier = Modifier
 ) {
     var showAddToPlaylist by remember { mutableStateOf(false) }
+    var showPlaybackControlsDialog by remember { mutableStateOf(false) }
     var showEqualizerDialog by remember { mutableStateOf(false) }
     val playlistViewModel: PlaylistViewModel = hiltViewModel()
     val playlists by playlistViewModel.playlists.collectAsState()
@@ -436,6 +439,14 @@ fun MusicView(
                 }
             }
 
+            // Pitch & Speed
+            IconButton(onClick = { showPlaybackControlsDialog = true }) {
+                Icon(
+                    imageVector = Icons.Outlined.Tune,
+                    contentDescription = "Playback Controls"
+                )
+            }
+
             // More options
             IconButton(onClick = { /* TODO */ }) {
                 Icon(
@@ -537,6 +548,14 @@ fun MusicView(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+    }
+
+
+
+    if (showPlaybackControlsDialog) {
+        PlaybackControlsDialog(
+            onDismiss = { showPlaybackControlsDialog = false }
+        )
     }
 
     if (showEqualizerDialog) {
