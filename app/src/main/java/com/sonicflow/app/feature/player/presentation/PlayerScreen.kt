@@ -26,6 +26,7 @@ import com.sonicflow.app.core.common.formatDuration
 import com.sonicflow.app.core.common.showToast
 import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.ui.components.CircularAlbumArt
+import com.sonicflow.app.feature.player.components.EqualizerDialog
 import com.sonicflow.app.feature.player.components.SleepTimerDialog
 import com.sonicflow.app.feature.player.components.WaveformVisualizer
 import com.sonicflow.app.feature.player.components.LyricsView
@@ -268,6 +269,7 @@ fun MusicView(
     modifier: Modifier = Modifier
 ) {
     var showAddToPlaylist by remember { mutableStateOf(false) }
+    var showEqualizerDialog by remember { mutableStateOf(false) }
     val playlistViewModel: PlaylistViewModel = hiltViewModel()
     val playlists by playlistViewModel.playlists.collectAsState()
     val playerViewModel: PlayerViewModel = hiltViewModel()
@@ -522,9 +524,9 @@ fun MusicView(
                 )
             }
 
-            // Equalizer (TODO)
+            // Equalizer
             IconButton(
-                onClick = { /* TODO */ },
+                onClick = { showEqualizerDialog = true  },
                 modifier = Modifier.size(48.dp)
             ) {
                 Icon(
@@ -537,6 +539,11 @@ fun MusicView(
         Spacer(modifier = Modifier.height(16.dp))
     }
 
+    if (showEqualizerDialog) {
+        EqualizerDialog(
+            onDismiss = { showEqualizerDialog = false }
+        )
+    }
     // Dialog Add to Playlist
     if (showAddToPlaylist) {
         AddToPlaylistDialog(

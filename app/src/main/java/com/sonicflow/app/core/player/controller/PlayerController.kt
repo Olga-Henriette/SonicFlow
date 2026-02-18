@@ -1,9 +1,11 @@
 package com.sonicflow.app.core.player.controller
 
 import android.content.Context
+import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import com.sonicflow.app.core.domain.model.Song
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,7 +24,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class PlayerController @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    val equalizerController: EqualizerController
 ) {
 
     // États du player
@@ -41,6 +44,7 @@ class PlayerController @Inject constructor(
     // Listener pour les événements ExoPlayer (AVANT exoPlayer)
     var onSongEnded: (() -> Unit)? = null
     var onMediaItemTransition: ((Int) -> Unit)? = null
+
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -74,6 +78,26 @@ class PlayerController @Inject constructor(
         addListener(playerListener)
 
         repeatMode = Player.REPEAT_MODE_OFF
+    }
+
+
+
+    init {
+        // ⬇️ CORRIGÉ : Obtenir l'audioSessionId depuis exoPlayer
+        exoPlayer.addListener(object : Player.Listener {
+            @OptIn(UnstableApi::class)
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) {
+                    try {
+                        // Obtenir l'audio session ID de ExoPlayer
+                        val audioSessionId = exoPlayer.audioSessionId
+                        equalizerController.initialize(audioSessionId)
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to initialize equalizer with audio session")
+                    }
+                }
+            }
+        })
     }
 
     /**
@@ -168,6 +192,7 @@ class PlayerController @Inject constructor(
     fun release() {
         exoPlayer.removeListener(playerListener)
         exoPlayer.release()
+        equalizerController.release()
         Timber.d("Player released")
     }
 
