@@ -54,6 +54,33 @@
             </intent-filter>
         </receiver>
 
+
+        <!-- Mini Player Widget -->
+        <receiver
+            android:name=".feature.widgets.receiver.MiniPlayerWidgetReceiver"
+            android:exported="true"
+            android:label="SonicFlow Mini Player">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/mini_player_widget_info" />
+        </receiver>
+
+        <!-- Large Player Widget -->
+        <receiver
+            android:name=".feature.widgets.receiver.LargePlayerWidgetReceiver"
+            android:exported="true"
+            android:label="SonicFlow Player">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/large_player_widget_info" />
+        </receiver>
+
     </application>
 
 </manifest>

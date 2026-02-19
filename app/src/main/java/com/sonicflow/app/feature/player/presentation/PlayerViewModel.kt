@@ -1,15 +1,17 @@
 package com.sonicflow.app.feature.player.presentation
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.domain.usecase.AddSongToPlaylistUseCase
 import com.sonicflow.app.core.domain.usecase.IncrementPlayCountUseCase
-import com.sonicflow.app.core.domain.usecase.RemoveSongFromPlaylistUseCase // ← VÉRIFIER CETTE LIGNE
+import com.sonicflow.app.core.domain.usecase.RemoveSongFromPlaylistUseCase
 import com.sonicflow.app.core.domain.usecase.ToggleFavoriteUseCase
 import com.sonicflow.app.core.player.controller.PlayerController
 import com.sonicflow.app.core.player.service.SleepTimerManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +19,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import androidx.glance.appwidget.GlanceAppWidgetManager
+import com.sonicflow.app.feature.widgets.receiver.MiniPlayerWidgetReceiver
+import com.sonicflow.app.feature.widgets.receiver.LargePlayerWidgetReceiver
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -33,7 +38,8 @@ class PlayerViewModel @Inject constructor(
     private val addSongToPlaylistUseCase: AddSongToPlaylistUseCase,
     private val removeSongFromPlaylistUseCase: RemoveSongFromPlaylistUseCase,
     private val incrementPlayCountUseCase: IncrementPlayCountUseCase,
-    private val sleepTimerManager: SleepTimerManager
+    private val sleepTimerManager: SleepTimerManager,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     // État unique du player
@@ -140,18 +146,62 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             playerController.isPlaying.collect { isPlaying ->
                 _state.update { it.copy(isPlaying = isPlaying) }
+                updateWidget()
             }
         }
 
         viewModelScope.launch {
             playerController.currentSong.collect { song ->
                 _state.update { it.copy(currentSong = song) }
+                updateWidget()
             }
         }
 
         viewModelScope.launch {
             playerController.duration.collect { duration ->
                 _state.update { it.copy(duration = duration) }
+            }
+        }
+    }
+
+
+    private fun updateWidget() {
+        viewModelScope.launch {
+
+            val currentState = _state.value
+
+            val repository =
+                com.sonicflow.app.feature.widgets.data.MusicWidgetRepository(context)
+
+            repository.updateState(
+                com.sonicflow.app.feature.widgets.data.MusicWidgetState(
+                    songTitle = currentState.currentSong?.title ?: "No song playing",
+                    artistName = currentState.currentSong?.artist ?: "Unknown artist",
+                    albumId = currentState.currentSong?.albumId ?: 0L,
+                    isPlaying = currentState.isPlaying,
+                    currentPosition = currentState.currentPosition,
+                    duration = currentState.duration
+                )
+            )
+
+            val manager = GlanceAppWidgetManager(context)
+
+            val miniWidget =
+                com.sonicflow.app.feature.widgets.components.MiniPlayerWidget()
+
+            val largeWidget =
+                com.sonicflow.app.feature.widgets.components.LargePlayerWidget()
+
+            manager.getGlanceIds(
+                com.sonicflow.app.feature.widgets.components.MiniPlayerWidget::class.java
+            ).forEach { id ->
+                miniWidget.update(context, id)
+            }
+
+            manager.getGlanceIds(
+                com.sonicflow.app.feature.widgets.components.LargePlayerWidget::class.java
+            ).forEach { id ->
+                largeWidget.update(context, id)
             }
         }
     }

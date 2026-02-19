@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">SonicFlow</string>
+
+    <!-- Widgets -->
+    <string name="mini_player_widget_description">Mini music player with basic controls</string>
+    <string name="large_player_widget_description">Full music player with album art and controls</string>
 </resources>
