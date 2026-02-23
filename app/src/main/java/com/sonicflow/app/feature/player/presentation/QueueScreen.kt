@@ -20,11 +20,13 @@ import com.sonicflow.app.core.common.formatDuration
 import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.ui.components.AlbumArtImage
 import com.sonicflow.app.core.ui.components.ConfirmationDialog
+import com.sonicflow.app.feature.player.components.MiniPlayer
 
 @Composable
 fun QueueScreen(
     viewModel: PlayerViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
+    onMiniPlayerClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.state.collectAsState()
@@ -53,6 +55,22 @@ fun QueueScreen(
                         }
                     }
                 }
+            )
+        },
+        bottomBar = {
+            MiniPlayer(
+                currentSong = state.currentSong,
+                isPlaying = state.isPlaying,
+                currentPosition = state.currentPosition,
+                duration = state.duration,
+                hasNext = state.hasNext,
+                onPlayPauseClick = {
+                    viewModel.handleIntent(PlayerIntent.PlayPause)
+                },
+                onNextClick = {
+                    viewModel.handleIntent(PlayerIntent.Next)
+                },
+                onMiniPlayerClick = onMiniPlayerClick
             )
         }
     ) { paddingValues ->

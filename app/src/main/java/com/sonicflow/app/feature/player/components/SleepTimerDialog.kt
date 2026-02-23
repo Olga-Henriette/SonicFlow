@@ -21,10 +21,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
-/**
- * Dialog moderne pour le Sleep Timer
- * Design fluide avec animations
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SleepTimerDialog(

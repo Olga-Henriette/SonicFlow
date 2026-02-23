@@ -1,6 +1,5 @@
 package com.sonicflow.app.feature.library.presentation
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -9,35 +8,37 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.sonicflow.app.feature.player.components.MiniPlayer
 import com.sonicflow.app.core.domain.model.Album
-import com.sonicflow.app.core.ui.components.AlbumArtImage
 import com.sonicflow.app.feature.library.components.AlbumGridItem
 
+/**
+ * Écran de la grille d'albums
+ * Accepte les albums filtrés
+ */
 @Composable
 fun AlbumsScreen(
+    filteredAlbums: List<Album>? = null,
     onAlbumClick: (Album) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val viewModel: LibraryViewModel = hiltViewModel()
     val songs by viewModel.songs.collectAsState()
 
-    val albums = remember(songs) {
+    // Utiliser filteredAlbums si fourni
+    val albums = filteredAlbums ?: remember(songs) {
         songs
             .groupBy { it.albumId }
             .map { (albumId, albumSongs) ->
                 val firstSong = albumSongs.first()
                 Album(
                     id = albumId,
-                    name = firstSong .album,
-                    artist = firstSong .artist,
-                    artistId = 0L, // TODO: récupérer depuis MediaStore
+                    name = firstSong.album,
+                    artist = firstSong.artist,
+                    artistId = 0L,
                     songCount = albumSongs.size,
-                    year = firstSong .year
+                    year = firstSong.year
                 )
             }
             .sortedBy { it.name }
@@ -48,7 +49,23 @@ fun AlbumsScreen(
             modifier = modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Text("No albums found")
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = if (filteredAlbums != null) "No albums found" else "No albums in library",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (filteredAlbums != null) {
+                    Text(
+                        text = "Try a different search",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     } else {
         LazyVerticalGrid(
@@ -58,7 +75,7 @@ fun AlbumsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = modifier.fillMaxSize()
         ) {
-            items(albums) { album ->
+            items(albums, key = { it.id }) { album ->
                 AlbumGridItem(
                     album = album,
                     onClick = { onAlbumClick(album) }

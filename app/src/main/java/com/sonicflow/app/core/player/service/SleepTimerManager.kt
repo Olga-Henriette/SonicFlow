@@ -8,9 +8,6 @@ import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Gère le sleep timer
- */
 @Singleton
 class SleepTimerManager @Inject constructor() {
 

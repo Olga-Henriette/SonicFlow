@@ -1,4 +1,3 @@
-// core/player/notification/NotificationActionReceiver.kt
 package com.sonicflow.app.core.player.notification
 
 import android.content.BroadcastReceiver
@@ -21,18 +20,40 @@ class NotificationActionReceiver : BroadcastReceiver() {
         Timber.d("Received action: ${intent?.action}")
 
         when (intent?.action) {
-            "PREVIOUS" -> playerController.previous()
-            "PLAY_PAUSE" -> playerController.togglePlayPause()
-            "NEXT" -> playerController.next()
+            "PREVIOUS" -> {
+                val exoPlayer = playerController.getExoPlayer()
+                if (exoPlayer.hasPreviousMediaItem() ||
+                    exoPlayer.currentPosition > 3000) {
+                    playerController.previous()
+                } else {
+                    Timber.d("Previous not available - ignoring")
+                }
+            }
+
+            "PLAY_PAUSE" -> {
+                playerController.togglePlayPause()
+            }
+
+            "NEXT" -> {
+                val exoPlayer = playerController.getExoPlayer()
+                if (exoPlayer.hasNextMediaItem()) {
+                    playerController.next()
+                } else {
+                    Timber.d("Next not available - ignoring")
+                }
+            }
 
             MusicNotificationManager.ACTION_FAVORITE -> {
                 Timber.d("Favorite clicked")
-                // TODO: Implémenter toggle favorite
+                // TODO
             }
 
             MusicNotificationManager.ACTION_CLOSE -> {
                 Timber.d("Close clicked")
                 playerController.pause()
+                val exoPlayer = playerController.getExoPlayer()
+                exoPlayer.stop()
+                exoPlayer.clearMediaItems()
             }
         }
     }

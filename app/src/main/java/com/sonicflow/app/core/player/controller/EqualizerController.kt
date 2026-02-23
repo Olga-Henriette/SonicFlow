@@ -1,16 +1,15 @@
-// core/player/controller/EqualizerController.kt
 package com.sonicflow.app.core.player.controller
 
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
 import android.media.audiofx.PresetReverb
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Contrôleur d'égaliseur audio professionnel
  * Gère l'égaliseur, bass boost et reverb
  */
 @Singleton
@@ -106,26 +105,29 @@ class EqualizerController @Inject constructor() {
     /**
      * Initialiser l'égaliseur avec l'audio session du player
      */
-
-    fun initialize(audioSessionId: Int) {
+    @androidx.annotation.OptIn(UnstableApi::class)
+    fun initialize(player: Player) {
         try {
+
+            val audioSessionId = (player as? androidx.media3.exoplayer.ExoPlayer)
+                ?.audioSessionId ?: return
+
             // Créer l'égaliseur
             equalizer = Equalizer(0, audioSessionId).apply {
                 enabled = false
             }
 
-            // Créer le bass boost
             bassBoost = BassBoost(0, audioSessionId).apply {
                 enabled = false
             }
 
-            // Créer le reverb
             presetReverb = PresetReverb(0, audioSessionId).apply {
                 enabled = false
             }
 
             Timber.d("Equalizer initialized with ${equalizer?.numberOfBands} bands")
             logBandInfo()
+
         } catch (e: Exception) {
             Timber.e(e, "Failed to initialize equalizer")
         }

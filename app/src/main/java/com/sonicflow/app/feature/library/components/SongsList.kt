@@ -18,10 +18,6 @@ import com.sonicflow.app.feature.playlist.components.AddToPlaylistDialog
 import com.sonicflow.app.feature.playlist.presentation.CreatePlaylistDialog
 import com.sonicflow.app.feature.playlist.presentation.PlaylistViewModel
 
-/**
- * Liste de chansons réutilisable
- * Composant professionnel avec gestion d'état complète
- */
 @Composable
 fun SongsList(
     songs: List<Song>,

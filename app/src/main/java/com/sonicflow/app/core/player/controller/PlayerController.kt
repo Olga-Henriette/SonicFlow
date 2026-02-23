@@ -42,7 +42,7 @@ class PlayerController @Inject constructor(
     private val _currentSong = MutableStateFlow<Song?>(null)
     val currentSong: StateFlow<Song?> = _currentSong.asStateFlow()
 
-    // Listener pour les événements ExoPlayer (AVANT exoPlayer)
+    // Listener pour les événements ExoPlayer
     var onSongEnded: (() -> Unit)? = null
     var onMediaItemTransition: ((Int) -> Unit)? = null
 
@@ -81,20 +81,13 @@ class PlayerController @Inject constructor(
         repeatMode = Player.REPEAT_MODE_OFF
     }
 
-
-
     init {
+        // Initialiser l'equalizer quand le player est prêt
         exoPlayer.addListener(object : Player.Listener {
-            @OptIn(UnstableApi::class)
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_READY) {
-                    try {
-                        // Obtenir l'audio session ID de ExoPlayer
-                        val audioSessionId = exoPlayer.audioSessionId
-                        equalizerController.initialize(audioSessionId)
-                    } catch (e: Exception) {
-                        Timber.e(e, "Failed to initialize equalizer with audio session")
-                    }
+                    // Utiliser le player directement
+                    equalizerController.initialize(exoPlayer)
                 }
             }
         })

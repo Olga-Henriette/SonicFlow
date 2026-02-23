@@ -4,7 +4,7 @@ data class Album(
     val id: Long,
     val name: String,
     val artist: String,
-    val artistId: Long,
+    val artistId: Long = 0L,
     val songCount: Int,
     val year: Int = 0,
     val artworkUri: String? = null

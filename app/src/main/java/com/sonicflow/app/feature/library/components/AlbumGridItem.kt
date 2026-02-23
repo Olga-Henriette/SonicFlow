@@ -43,9 +43,8 @@ fun AlbumGridItem(
                 text = album.name,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                minLines = 2 // Force 2 lignes pour alignement
             )
 
             Spacer(modifier = Modifier.height(4.dp))

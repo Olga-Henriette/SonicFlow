@@ -13,14 +13,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.material.icons.filled.PlaylistAdd
-import com.sonicflow.app.feature.playlist.components.AddToPlaylistDialog
 import com.sonicflow.app.core.domain.model.Playlist
 
 @Composable
 fun PlaylistsScreen(
+    filteredPlaylists: List<Playlist>? = null,
     viewModel: PlaylistViewModel = hiltViewModel(),
     onPlaylistClick: (Playlist) -> Unit = {},
     modifier: Modifier = Modifier
@@ -31,12 +28,10 @@ fun PlaylistsScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var playlistToDelete by remember { mutableStateOf<Playlist?>(null) }
 
+    // Utiliser filteredPlaylists si fourni, sinon playlists
+    val displayPlaylists = filteredPlaylists ?: playlists
+
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Playlists") }
-            )
-        },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showCreateDialog = true }
@@ -51,12 +46,12 @@ fun PlaylistsScreen(
                 .padding(paddingValues)
         ) {
             when {
-                isLoading -> {
+                isLoading && filteredPlaylists == null -> {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center)
                     )
                 }
-                playlists.isEmpty() -> {
+                displayPlaylists.isEmpty() -> {
                     Column(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -69,13 +64,13 @@ fun PlaylistsScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "No playlists yet",
+                            text = if (filteredPlaylists != null) "No playlists found" else "No playlists yet",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Create your first playlist",
+                            text = if (filteredPlaylists != null) "Try a different search" else "Create your first playlist",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -85,7 +80,7 @@ fun PlaylistsScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(playlists) { playlist ->
+                        items(displayPlaylists, key = { it.id }) { playlist ->
                             PlaylistItem(
                                 playlist = playlist,
                                 onClick = { onPlaylistClick(playlist) },
@@ -98,7 +93,7 @@ fun PlaylistsScreen(
         }
     }
 
-    // Dialog pour créer une playlist
+    // Dialogs...
     if (showCreateDialog) {
         CreatePlaylistDialog(
             onDismiss = { showCreateDialog = false },
@@ -109,7 +104,6 @@ fun PlaylistsScreen(
         )
     }
 
-    // Dialog de confirmation de suppression
     playlistToDelete?.let { playlist ->
         AlertDialog(
             onDismissRequest = { playlistToDelete = null },
@@ -120,7 +114,10 @@ fun PlaylistsScreen(
                     onClick = {
                         viewModel.deletePlaylist(playlist.id)
                         playlistToDelete = null
-                    }
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
                 ) {
                     Text("Delete")
                 }
@@ -134,13 +131,18 @@ fun PlaylistsScreen(
     }
 }
 
+/**
+ * Item de playlist avec actions
+ */
 @Composable
-fun PlaylistItem(
+private fun PlaylistItem(
     playlist: Playlist,
     onClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+
     ListItem(
         headlineContent = {
             Text(
@@ -159,15 +161,52 @@ fun PlaylistItem(
             Icon(
                 imageVector = Icons.Default.QueueMusic,
                 contentDescription = null,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(40.dp),
+                tint = MaterialTheme.colorScheme.primary
             )
         },
         trailingContent = {
-            IconButton(onClick = onDeleteClick) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete playlist"
-                )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                IconButton(onClick = onDeleteClick) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete playlist",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "More"
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Rename") },
+                            leadingIcon = { Icon(Icons.Default.Edit, null) },
+                            onClick = {
+                                showMenu = false
+                                // TODO: Implement rename
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Share") },
+                            leadingIcon = { Icon(Icons.Default.Share, null) },
+                            onClick = {
+                                showMenu = false
+                                // TODO: Implement share
+                            }
+                        )
+                    }
+                }
             }
         },
         modifier = modifier.clickable(onClick = onClick)
@@ -175,6 +214,39 @@ fun PlaylistItem(
     HorizontalDivider()
 }
 
+/**
+ * État vide
+ */
+@Composable
+private fun EmptyPlaylistsState(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.QueueMusic,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "No playlists yet",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Create your first playlist",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * Dialog de création de playlist
+ */
 @Composable
 fun CreatePlaylistDialog(
     onDismiss: () -> Unit,
@@ -184,13 +256,21 @@ fun CreatePlaylistDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+        },
         title = { Text("Create Playlist") },
         text = {
-            TextField(
+            OutlinedTextField(
                 value = playlistName,
                 onValueChange = { playlistName = it },
                 label = { Text("Playlist name") },
-                singleLine = true
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
             )
         },
         confirmButton = {

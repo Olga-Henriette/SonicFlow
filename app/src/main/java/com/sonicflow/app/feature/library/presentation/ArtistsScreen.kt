@@ -15,27 +15,30 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sonicflow.app.core.domain.model.Artist
 
+/**
+ * Écran de la liste d'artistes
+ * Accepte les artistes filtrés
+ */
 @Composable
 fun ArtistsScreen(
+    filteredArtists: List<Artist>? = null,
     onArtistClick: (Artist) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val viewModel: LibraryViewModel = hiltViewModel()
-
     val songs by viewModel.songs.collectAsState()
 
-    // Générer la liste d'artistes depuis les chansons
-    val artists = remember(songs) {
+    // Utiliser filteredArtists si fourni
+    val artists = filteredArtists ?: remember(songs) {
         songs
             .groupBy { normalizeArtistName(it.artist) }
             .map { (normalizedName, artistSongs) ->
-
                 val displayName = artistSongs
                     .groupBy { it.artist }
                     .maxByOrNull { it.value.size }
                     ?.key ?: normalizedName
 
-                val albums = artistSongs.map { it.album }.distinct()
+                val albums = artistSongs.map { it.albumId }.distinct()
 
                 Artist(
                     id = normalizedName.hashCode().toLong(),
@@ -52,13 +55,35 @@ fun ArtistsScreen(
             modifier = modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Text("No artists found")
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = if (filteredArtists != null) "No artists found" else "No artists in library",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (filteredArtists != null) {
+                    Text(
+                        text = "Try a different search",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     } else {
         LazyColumn(
             modifier = modifier.fillMaxSize()
         ) {
-            items(artists) { artist ->
+            items(artists, key = { it.id }) { artist ->
                 ArtistItem(
                     artist = artist,
                     onClick = { onArtistClick(artist) }

@@ -9,10 +9,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 
-/**
- * Barre de recherche pour la bibliothèque
- * Composant réutilisable
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchTopBar(

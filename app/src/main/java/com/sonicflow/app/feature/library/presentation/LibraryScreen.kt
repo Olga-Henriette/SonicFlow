@@ -45,7 +45,8 @@ fun LibraryScreen(
     onPlaylistClick: (Playlist) -> Unit = {},
     onAlbumClick: (Album) -> Unit = {},
     onArtistClick: (Artist) -> Unit = {},
-    onMiniPlayerClick: () -> Unit = {}
+    onMiniPlayerClick: () -> Unit = {},
+    onOpenDrawer: () -> Unit = {}
 ) {
     val songs by viewModel.songs.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -56,6 +57,9 @@ fun LibraryScreen(
     val albumCount by viewModel.albumCount.collectAsState()
     val artistCount by viewModel.artistCount.collectAsState()
     val playlistCount by playlistViewModel.playlistCount.collectAsState()
+
+
+    val playlists by playlistViewModel.playlists.collectAsState()
 
     var selectedTab by remember(initialTab) { mutableIntStateOf(initialTab) }
     val tabs = listOf("For You", "Songs", "Favorites", "Playlists", "Albums", "Artists")
@@ -92,6 +96,77 @@ fun LibraryScreen(
         }
     }
 
+
+    val filteredFavorites = if (searchQuery.isBlank()) {
+        favoriteSongs
+    } else {
+        favoriteSongs.filter {
+            it.title.contains(searchQuery, ignoreCase = true) ||
+                    it.artist.contains(searchQuery, ignoreCase = true) ||
+                    it.album.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+
+    val filteredPlaylists = if (searchQuery.isBlank()) {
+        playlists
+    } else {
+        playlists.filter {
+            it.name.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+
+    val albums = remember(songs) {
+        songs.groupBy { it.albumId }
+            .map { (albumId, albumSongs) ->
+                val firstSong = albumSongs.first()
+                Album(
+                    id = albumId,
+                    name = firstSong.album,
+                    artist = firstSong.artist,
+                    year = firstSong.year,
+                    songCount = albumSongs.size
+                )
+            }
+            .sortedBy { it.name }
+    }
+
+    val filteredAlbums = if (searchQuery.isBlank()) {
+        albums
+    } else {
+        albums.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.artist.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+
+    val artists = remember(songs) {
+        songs.groupBy { normalizeArtistName(it.artist) }
+            .map { (normalizedName, artistSongs) ->
+                val displayName = artistSongs
+                    .groupBy { it.artist }
+                    .maxByOrNull { it.value.size }?.key ?: normalizedName
+                val uniqueAlbums = artistSongs.map { it.albumId }.distinct().size
+                Artist(
+                    id = normalizedName.hashCode().toLong(),
+                    name = displayName,
+                    albumCount = uniqueAlbums,
+                    songCount = artistSongs.size
+                )
+            }
+            .sortedBy { it.name }
+    }
+
+    val filteredArtists = if (searchQuery.isBlank()) {
+        artists
+    } else {
+        artists.filter {
+            it.name.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
     var isRefreshing by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -111,13 +186,15 @@ fun LibraryScreen(
                         title = { Text("SonicFlow") },
                         navigationIcon = {
                             // Menu burger
-                            IconButton(onClick = { showDrawer = true }) {
+                            IconButton(onClick = onOpenDrawer) {
                                 Icon(Icons.Default.Menu, "Menu")
                             }
                         },
                         actions = {
-                            IconButton(onClick = { isSearchActive = true }) {
-                                Icon(Icons.Default.Search, "Search")
+                            if (pagerState.currentPage != 0) {
+                                IconButton(onClick = { isSearchActive = true }) {
+                                    Icon(Icons.Default.Search, "Search")
+                                }
                             }
                             IconButton(onClick = { /* TODO: Options */ }) {
                                 Icon(Icons.Default.MoreVert, "Options")
@@ -194,6 +271,7 @@ fun LibraryScreen(
                 currentPosition = playerState.currentPosition,
                 duration = playerState.duration,
                 albumPalette = albumPalette,
+                hasNext = playerState.hasNext,
                 onPlayPauseClick = {
                     playerViewModel.handleIntent(PlayerIntent.PlayPause)
                 },
@@ -210,6 +288,10 @@ fun LibraryScreen(
             isRefreshing = isRefreshing,
             error = error,
             filteredSongs = filteredSongs,
+            filteredFavorites = filteredFavorites,
+            filteredPlaylists = filteredPlaylists,
+            filteredAlbums = filteredAlbums,
+            filteredArtists = filteredArtists,
             favoriteSongs = favoriteSongs,
             playerViewModel = playerViewModel,
             currentSong = playerState.currentSong,
@@ -334,4 +416,24 @@ fun SongItem(
         modifier = Modifier.clickable(onClick = onClick)
     )
     HorizontalDivider()
+}
+
+private fun normalizeArtistName(artist: String): String {
+    return artist
+        .lowercase()
+        .trim()
+        .split(
+            " feat ",
+            " feat. ",
+            " ft ",
+            " ft. ",
+            " featuring ",
+            " & ",
+            " and ",
+            " x ",
+            " - ",
+            " with "
+        )
+        .first()
+        .trim()
 }

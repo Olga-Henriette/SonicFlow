@@ -1,24 +1,18 @@
 package com.sonicflow.app.core.player.service
 
-import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
-import androidx.media3.common.AudioAttributes
-import androidx.media3.common.C
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
-import com.sonicflow.app.MainActivity
 import com.sonicflow.app.core.player.controller.PlayerController
 import com.sonicflow.app.core.player.notification.MusicNotificationManager
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 import javax.inject.Inject
 
-/**
- * Service de lecture audio en arrière-plan
- * - Survit même si l'app est fermée
- * - Gère MediaSession (contrôles lockscreen, Bluetooth, etc.)
- */
+@UnstableApi
 @AndroidEntryPoint
 class MusicService : MediaSessionService() {
 
@@ -30,11 +24,30 @@ class MusicService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
 
+    // Listener pour mettre à jour la notification
+    private val playerListener = object : Player.Listener {
+        override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
+            updateNotification()
+        }
+
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            updateNotification()
+        }
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            updateNotification()
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
 
-        // Créer la MediaSession
-        mediaSession = MediaSession.Builder(this, playerController.getExoPlayer())
+        val player = playerController.getExoPlayer()
+
+        // Ajouter le listener
+        player.addListener(playerListener)
+
+        mediaSession = MediaSession.Builder(this, player)
             .setCallback(object : MediaSession.Callback {
                 override fun onConnect(
                     session: MediaSession,
@@ -52,6 +65,29 @@ class MusicService : MediaSessionService() {
         Timber.d("MusicService created with MediaSession")
     }
 
+    // Mettre à jour la notification avec hasNext/hasPrevious
+    private fun updateNotification() {
+        val session = mediaSession ?: return
+        val player = session.player
+
+        val hasNext = when {
+            player.mediaItemCount == 0 -> false
+            player.repeatMode == Player.REPEAT_MODE_ALL -> true
+            player.repeatMode == Player.REPEAT_MODE_ONE -> true
+            else -> player.currentMediaItemIndex < player.mediaItemCount - 1
+        }
+
+        val hasPrevious = when {
+            player.mediaItemCount == 0 -> false
+            player.repeatMode == Player.REPEAT_MODE_ALL -> true
+            player.repeatMode == Player.REPEAT_MODE_ONE -> true
+            player.currentPosition > 3000 -> true // Si > 3s, restart song
+            else -> player.currentMediaItemIndex > 0
+        }
+
+        notificationManager.updateNotification(session, hasNext, hasPrevious)
+    }
+
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
         return mediaSession
     }
@@ -59,7 +95,6 @@ class MusicService : MediaSessionService() {
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
 
-        // Arrêter le service si aucune lecture en cours
         val player = mediaSession?.player
         if (player?.playWhenReady == false) {
             stopSelf()
@@ -68,6 +103,7 @@ class MusicService : MediaSessionService() {
 
     override fun onDestroy() {
         mediaSession?.run {
+            player.removeListener(playerListener)
             player.release()
             release()
             mediaSession = null
@@ -77,7 +113,6 @@ class MusicService : MediaSessionService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Démarrer en foreground
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             // La notification sera gérée automatiquement par Media3
         }

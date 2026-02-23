@@ -1,19 +1,16 @@
 package com.sonicflow.app.feature.library.presentation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sonicflow.app.core.domain.model.Album
-import com.sonicflow.app.core.ui.components.AlbumArtImage
+import com.sonicflow.app.core.ui.components.DetailScreenTopBar
+import com.sonicflow.app.core.ui.components.DetailInfoHeader
 import com.sonicflow.app.feature.player.components.MiniPlayer
 import com.sonicflow.app.feature.player.presentation.PlayerIntent
 import com.sonicflow.app.feature.player.presentation.PlayerViewModel
@@ -30,34 +27,43 @@ fun AlbumDetailScreen(
     val allSongs by libraryViewModel.songs.collectAsState()
     val playerState by playerViewModel.state.collectAsState()
 
+    // Normaliser le nom de l'album
+    val normalizedAlbumName = remember(album.name) {
+        normalizeAlbumName(album.name)
+    }
+
     // Filtrer les chansons de cet album
-    val albumSongs = remember(allSongs, album.id) {
-        allSongs.filter { it.albumId == album.id }
-            .sortedBy { it.track }
+    val albumSongs = remember(allSongs, normalizedAlbumName) {
+        allSongs.filter {
+            normalizeAlbumName(it.album) == normalizedAlbumName
+        }.sortedBy { it.track }
+    }
+
+    // Gérer le bouton retour système
+    BackHandler(onBack = onNavigateBack)
+
+    // Vérifier si l'album est en train de jouer
+    val isAlbumPlaying = remember(playerState.currentSong, playerState.isPlaying, albumSongs) {
+        playerState.isPlaying && albumSongs.any { it.id == playerState.currentSong?.id }
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(album.name) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
-                    }
-                },
-                actions = {
-                    if (albumSongs.isNotEmpty()) {
-                        IconButton(
-                            onClick = {
-                                playerViewModel.handleIntent(
-                                    PlayerIntent.PlayQueue(albumSongs, 0)
-                                )
-                            }
-                        ) {
-                            Icon(Icons.Default.PlayArrow, "Play all")
+            DetailScreenTopBar(
+                title = cleanName(album.name),
+                onNavigateBack = onNavigateBack,
+                isPlaying = isAlbumPlaying,
+                canPlay = albumSongs.isNotEmpty(),
+                onPlayPauseClick = if (albumSongs.isNotEmpty()) {
+                    {
+                        if (isAlbumPlaying) {
+                            playerViewModel.handleIntent(PlayerIntent.PlayPause)
+                        } else {
+                            playerViewModel.handleIntent(PlayerIntent.PlayQueue(albumSongs, 0))
                         }
                     }
-                }
+                } else null,
+                onSearchClick = { /* TODO */ }
             )
         },
         bottomBar = {
@@ -66,6 +72,7 @@ fun AlbumDetailScreen(
                 isPlaying = playerState.isPlaying,
                 currentPosition = playerState.currentPosition,
                 duration = playerState.duration,
+                hasNext = playerState.hasNext,
                 onPlayPauseClick = {
                     playerViewModel.handleIntent(PlayerIntent.PlayPause)
                 },
@@ -81,88 +88,68 @@ fun AlbumDetailScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Header avec artwork
+            // Header d'info
             item {
-                AlbumHeader(album = album)
+                DetailInfoHeader(
+                    title = cleanName(album.name),
+                    subtitle = cleanName(album.artist),
+                    info = buildString {
+                        if (album.year > 0) {
+                            append("${album.year} • ")
+                        }
+                        append("${albumSongs.size} songs")
+                    },
+                    albumId = album.id
+                )
             }
 
             // Liste des chansons
-            items(albumSongs) { song ->
-                SongItem(
+            items(albumSongs, key = { it.id }) { song ->
+                com.sonicflow.app.core.ui.components.SongListItem(
                     song = song,
-                    onFavoriteClick = { clickedSong ->
-                        playerViewModel.handleIntent(
-                            PlayerIntent.ToggleFavorite(clickedSong.id)
-                        )
-                    },
-                    onClick = {
+                    isCurrentlyPlaying = song.id == playerState.currentSong?.id,
+                    isPlaying = playerState.isPlaying,
+                    onSongClick = {
                         val index = albumSongs.indexOf(song)
                         playerViewModel.handleIntent(
                             PlayerIntent.PlayQueue(albumSongs, index)
                         )
-                    }
+                    },
+                    onFavoriteClick = {
+                        playerViewModel.handleIntent(
+                            PlayerIntent.ToggleFavorite(song.id)
+                        )
+                    },
+                    onMoreClick = { }
                 )
             }
         }
     }
 }
 
-@Composable
-fun AlbumHeader(
-    album: Album,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Album art
-        AlbumArtImage(
-            albumId = album.id,
-            contentDescription = album.name,
-            size = 200.dp
+private fun normalizeAlbumName(album: String): String {
+    return album.lowercase().trim()
+        .split(
+            " feat ", " feat. ", " ft ", " ft. ", " featuring ",
+            " & ", " and ", " x ", " - ", " with "
         )
+        .first().trim()
+}
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Album name
-        Text(
-            text = album.name,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
+private fun cleanName(name: String): String {
+    return name
+        .split(
+            " feat ",
+            " feat. ",
+            " ft ",
+            " ft. ",
+            " featuring ",
+            " & ",
+            " and ",
+            " x ",
+            " - ",
+            " with "
         )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // Artist
-        Text(
-            text = album.artist,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // Info
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (album.year > 0) {
-                Text(
-                    text = album.year.toString(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text("•")
-            }
-            Text(
-                text = "${album.songCount} songs",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-    HorizontalDivider()
+        .first()
+        .trim()
 }

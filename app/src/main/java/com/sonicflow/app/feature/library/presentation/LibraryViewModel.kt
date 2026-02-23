@@ -13,10 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * ViewModel pour l'écran Library
- * - Pattern MVVM simple (pas MVI ici)
- */
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val getAllSongsUseCase: GetAllSongsUseCase

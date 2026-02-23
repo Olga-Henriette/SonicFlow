@@ -8,10 +8,10 @@ data class Song(
     val artist: String,
     val album: String,
     val albumId: Long,
-    val duration: Long,              // Durée en millisecondes
+    val duration: Long,              //  millisecondes
     val path: String,                // Chemin complet du fichier
-    val uri: Uri,                    // Uri pour ExoPlayer
-    val size: Long,                  // Taille en bytes
+    val uri: Uri,                    // pour ExoPlayer
+    val size: Long,                  // bytes
     val mimeType: String,            // "audio/mpeg", "audio/flac", ...
     val dateAdded: Long,             // Timestamp d'ajout
     val dateModified: Long,

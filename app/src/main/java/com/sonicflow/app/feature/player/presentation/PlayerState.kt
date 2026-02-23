@@ -16,7 +16,9 @@ data class PlayerState(
     val currentIndex: Int = 0,
     val isShuffled: Boolean = false,
     val repeatMode: RepeatMode = RepeatMode.OFF,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val hasNext: Boolean = true,
+    val hasPrevious: Boolean = true
 )
 
 /**

@@ -146,6 +146,7 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             playerController.isPlaying.collect { isPlaying ->
                 _state.update { it.copy(isPlaying = isPlaying) }
+                updateNavigationState()
                 updateWidget()
             }
         }
@@ -162,9 +163,7 @@ class PlayerViewModel @Inject constructor(
                 _state.update { it.copy(duration = duration) }
             }
         }
-    }
-
-
+     }
     private fun updateWidget() {
         viewModelScope.launch {
 
@@ -270,6 +269,8 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             incrementPlayCountUseCase(songs[index].id)
         }
+
+        updateNavigationState()
     }
 
     /**
@@ -299,6 +300,8 @@ class PlayerViewModel @Inject constructor(
                 currentSong = nextSong
             )
         }
+
+        updateNavigationState()
     }
 
     /**
@@ -340,9 +343,31 @@ class PlayerViewModel @Inject constructor(
                 currentSong = prevSong
             )
         }
+
+        updateNavigationState()
     }
 
-    private fun addToQueue(song: Song) {
+
+    fun hasNext(): Boolean {
+        val currentState = _state.value
+        if (currentState.queue.isEmpty()) return false
+
+        return when (currentState.repeatMode) {
+            RepeatMode.ONE, RepeatMode.ALL -> true
+            RepeatMode.OFF -> currentState.currentIndex < currentState.queue.lastIndex
+        }
+    }
+
+    fun hasPrevious(): Boolean {
+        val currentState = _state.value
+        if (currentState.queue.isEmpty()) return false
+
+        return when (currentState.repeatMode) {
+            RepeatMode.ONE, RepeatMode.ALL -> true
+            RepeatMode.OFF -> currentState.currentIndex > 0 || currentState.currentPosition > 3000
+        }
+    }
+        private fun addToQueue(song: Song) {
         _state.update {
             it.copy(queue = it.queue + song)
         }
@@ -354,9 +379,21 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    private fun updateNavigationState(){
+        _state.update{
+            it.copy(
+                hasNext = hasNext(),
+                hasPrevious = hasPrevious()
+            )
+        }
+    }
+
     private fun clearQueue() {
-        playerController.pause()
-        playerController.release()
+        saveSongPlayDuration()
+
+        val exoPlayer = playerController.getExoPlayer()
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
 
         _state.update {
             it.copy(
@@ -364,14 +401,19 @@ class PlayerViewModel @Inject constructor(
                 currentSong = null,
                 currentIndex = 0,
                 isPlaying = false,
-                isShuffled = false
+                isShuffled = false,
+                currentPosition = 0L,
+                duration = 0L,
+                hasNext = false,
+                hasPrevious = false
             )
         }
 
         _originalQueue = emptyList()
         _originalIndex = 0
+        lastSongId = null
 
-        Timber.d("Queue cleared")
+        Timber.d("Queue cleared and player stopped")
     }
     private fun toggleShuffle() {
         val currentState = _state.value
@@ -386,6 +428,7 @@ class PlayerViewModel @Inject constructor(
         }
 
         _state.update { it.copy(isShuffled = newShuffleState) }
+        updateNavigationState()
     }
     private fun toggleRepeat() {
         val newMode = when (_state.value.repeatMode) {
@@ -394,6 +437,8 @@ class PlayerViewModel @Inject constructor(
             RepeatMode.ONE -> RepeatMode.OFF
         }
         _state.update { it.copy(repeatMode = newMode) }
+
+        updateNavigationState()
     }
     private fun shuffleQueue() {
         val currentState = _state.value
@@ -417,7 +462,7 @@ class PlayerViewModel @Inject constructor(
         _state.update {
             it.copy(
                 queue = newQueue,
-                currentIndex = 0 // La chanson actuelle est maintenant en position 0
+                currentIndex = 0 // La position du chanson actuelle
             )
         }
 

@@ -5,9 +5,6 @@ import com.sonicflow.app.core.domain.repository.MusicRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
-/**
- * Use Case : Récupérer toutes les playlists
- */
 class GetAllPlaylistsUseCase @Inject constructor(
     private val repository: MusicRepository
 ) {

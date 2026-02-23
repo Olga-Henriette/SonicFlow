@@ -2,6 +2,7 @@ package com.sonicflow.app.core.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
@@ -20,11 +21,6 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.sonicflow.app.core.common.AlbumArtLoader
 
-/**
- * Composable pour afficher l'artwork d'un album
- * - Charge l'image via Coil 3
- * - Affiche un placeholder si pas d'image
- */
 @Composable
 fun AlbumArtImage(
     albumId: Long,
@@ -35,39 +31,44 @@ fun AlbumArtImage(
     val context = LocalContext.current
     val albumArtLoader = AlbumArtLoader(context)
 
-    SubcomposeAsyncImage(
-        model = ImageRequest.Builder(context)
-            .data(albumArtLoader.getAlbumArtUri(albumId))
-            .crossfade(true)
-            .build(),
-        contentDescription = contentDescription,
-        contentScale = ContentScale.Crop,
+    Box(
         modifier = modifier
             .size(size)
-            .clip(MaterialTheme.shapes.small),
-        loading = {
-            // Placeholder pendant le chargement
-            Box(
-                modifier = Modifier
-                    .size(size)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-            )
-        },
-        error = {
-            // Placeholder si erreur
-            Box(
-                modifier = Modifier
-                    .size(size)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(size / 2)
+            .clip(MaterialTheme.shapes.small)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        SubcomposeAsyncImage(
+            model = ImageRequest.Builder(context)
+                .data(albumArtLoader.getAlbumArtUri(albumId))
+                .size(coil3.size.Size.ORIGINAL)
+                .crossfade(true)
+                .build(),
+            contentDescription = contentDescription,
+            contentScale = ContentScale.Crop,
+            alignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize(),
+            loading = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                 )
-            } 
-        }
-    )
+            },
+            error = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(size / 2)
+                    )
+                }
+            }
+        )
+    }
 }

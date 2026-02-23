@@ -32,6 +32,7 @@ fun MiniPlayer(
     currentPosition: Long,
     duration: Long,
     albumPalette: AlbumPalette? = null,
+    hasNext: Boolean = true,
     onPlayPauseClick: () -> Unit,
     onNextClick: () -> Unit,
     onMiniPlayerClick: () -> Unit,
@@ -127,11 +128,17 @@ fun MiniPlayer(
 
                     IconButton(
                         onClick = onNextClick,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(40.dp),
+                        enabled = hasNext
                     ) {
                         Icon(
                             imageVector = Icons.Default.SkipNext,
-                            contentDescription = "Next"
+                            contentDescription = "Next",
+                            tint = if (hasNext) {
+                                LocalContentColor.current
+                            } else {
+                                LocalContentColor.current.copy(alpha = 0.38f)
+                            }
                         )
                     }
                 }

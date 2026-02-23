@@ -1,4 +1,3 @@
-// core/player/notification/MusicNotificationManager.kt
 package com.sonicflow.app.core.player.notification
 
 import android.app.Notification
@@ -54,6 +53,7 @@ class MusicNotificationManager @Inject constructor(
                 enableVibration(false)
                 setSound(null, null)
             }
+
             notificationManager.createNotificationChannel(channel)
             Timber.d("Notification channel created")
         }
@@ -93,7 +93,11 @@ class MusicNotificationManager @Inject constructor(
         }
     }
 
-    private fun createBaseNotification(mediaSession: MediaSession): Notification {
+    private fun createBaseNotification(
+        mediaSession: MediaSession,
+        hasNext: Boolean = true,
+        hasPrevious: Boolean = true
+    ): Notification {
         val player = mediaSession.player
         val metadata = player.currentMediaItem?.mediaMetadata
 
@@ -120,41 +124,48 @@ class MusicNotificationManager @Inject constructor(
             .setStyle(
                 MediaNotificationCompat.MediaStyle()
                     .setMediaSession(mediaSession.sessionCompatToken)
-                    .setShowActionsInCompactView(0, 1, 2)
+                    .setShowActionsInCompactView(
+                        *when {
+                            hasPrevious && hasNext -> intArrayOf(0, 1, 2)
+                            hasNext -> intArrayOf(0, 1)
+                            hasPrevious -> intArrayOf(0, 1)
+                            else -> intArrayOf(0)
+                        }
+                    )
             )
 
         // Previous
-        builder.addAction(
-            NotificationCompat.Action.Builder(
-                android.R.drawable.ic_media_previous,
-                "Previous",
-                createPendingIntent("PREVIOUS")
-            ).build()
-        )
+        if (hasPrevious) {
+            builder.addAction(
+                NotificationCompat.Action.Builder(
+                    android.R.drawable.ic_media_previous,
+                    "Previous",
+                    createPendingIntent("PREVIOUS")
+                ).build()
+            )
+        }
 
         // Play/Pause
         builder.addAction(
             NotificationCompat.Action.Builder(
-                if (player.isPlaying) {
-                    android.R.drawable.ic_media_pause
-                } else {
-                    android.R.drawable.ic_media_play
-                },
+                if (player.isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
                 if (player.isPlaying) "Pause" else "Play",
                 createPendingIntent("PLAY_PAUSE")
             ).build()
         )
 
         // Next
-        builder.addAction(
-            NotificationCompat.Action.Builder(
-                android.R.drawable.ic_media_next,
-                "Next",
-                createPendingIntent("NEXT")
-            ).build()
-        )
+        if (hasNext) {
+            builder.addAction(
+                NotificationCompat.Action.Builder(
+                    android.R.drawable.ic_media_next,
+                    "Next",
+                    createPendingIntent("NEXT")
+                ).build()
+            )
+        }
 
-        // Favorite ⭐
+        // Favorite
         builder.addAction(
             NotificationCompat.Action.Builder(
                 android.R.drawable.star_big_off,
@@ -163,7 +174,7 @@ class MusicNotificationManager @Inject constructor(
             ).build()
         )
 
-        // Close ❌
+        // Close
         builder.addAction(
             NotificationCompat.Action.Builder(
                 android.R.drawable.ic_menu_close_clear_cancel,
@@ -186,4 +197,18 @@ class MusicNotificationManager @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }
+
+    fun updateNotification(
+        mediaSession: MediaSession,
+        hasNext: Boolean,
+        hasPrevious: Boolean
+    ) {
+        val notification = createBaseNotification(
+            mediaSession,
+            hasNext,
+            hasPrevious
+        )
+        notificationManager.notify(NOTIFICATION_ID, notification)
+    }
 }
+

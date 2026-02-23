@@ -1,4 +1,3 @@
-// feature/playlist/components/AddToPlaylistDialog.kt
 package com.sonicflow.app.feature.playlist.components
 
 import androidx.compose.foundation.clickable
@@ -15,9 +14,6 @@ import androidx.compose.ui.unit.dp
 import com.sonicflow.app.core.domain.model.Playlist
 import com.sonicflow.app.core.domain.model.Song
 
-/**
- * Dialog pour ajouter une chanson à une playlist
- */
 @Composable
 fun AddToPlaylistDialog(
     song: Song,

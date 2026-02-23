@@ -51,7 +51,7 @@ class MediaStoreDataSource @Inject constructor(
             MediaStore.Audio.Media.BITRATE
         )
 
-        // Filtre : uniquement de la musique (pas les alarmes, notifications, etc.)
+        // Filtre : uniquement de la musique
         private const val SONG_SELECTION = "${MediaStore.Audio.Media.IS_MUSIC} = 1"
 
         // Tri par titre (ordre alphabétique)

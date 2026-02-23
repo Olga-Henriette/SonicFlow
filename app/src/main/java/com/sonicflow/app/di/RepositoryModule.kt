@@ -1,7 +1,9 @@
 package com.sonicflow.app.di
 
 import com.sonicflow.app.core.data.repository.MusicRepositoryImpl
+import com.sonicflow.app.core.data.repository.PreferencesRepositoryImpl
 import com.sonicflow.app.core.domain.repository.MusicRepository
+import com.sonicflow.app.core.domain.repository.PreferencesRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -26,4 +28,11 @@ abstract class RepositoryModule {
     abstract fun bindMusicRepository(
         musicRepositoryImpl: MusicRepositoryImpl
     ): MusicRepository
+
+
+    @Binds
+    @Singleton
+    abstract fun bindPreferencesRepository(
+        preferencesRepositoryImpl: PreferencesRepositoryImpl
+    ): PreferencesRepository
 }

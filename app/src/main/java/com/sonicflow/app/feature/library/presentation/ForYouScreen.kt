@@ -11,86 +11,63 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.sonicflow.app.core.domain.model.Song
-import com.sonicflow.app.core.domain.usecase.ClearPlayHistoryUseCase
-import com.sonicflow.app.core.domain.usecase.GetMostPlayedUseCase
-import com.sonicflow.app.core.domain.usecase.GetRecentlyPlayedUseCase
-import com.sonicflow.app.feature.player.presentation.PlayerIntent
-import com.sonicflow.app.feature.player.presentation.PlayerViewModel
-import androidx.compose.ui.platform.LocalContext
 import com.sonicflow.app.core.common.showToast
+import com.sonicflow.app.core.domain.model.Song
 import com.sonicflow.app.core.ui.components.ConfirmationDialog
+import com.sonicflow.app.feature.player.presentation.PlayerViewModel
 import kotlinx.coroutines.launch
+
 @Composable
 fun ForYouScreen(
+    forYouViewModel: ForYouViewModel = hiltViewModel(),
     libraryViewModel: LibraryViewModel = hiltViewModel(),
     playerViewModel: PlayerViewModel = hiltViewModel(),
-    forYouViewModel: ForYouViewModel = hiltViewModel(),
-    getMostPlayedUseCase: GetMostPlayedUseCase,
-    getRecentlyPlayedUseCase: GetRecentlyPlayedUseCase,
-    clearPlayHistoryUseCase: ClearPlayHistoryUseCase = hiltViewModel<ForYouViewModel>().clearPlayHistoryUseCase,
     onSongClick: (Song, List<Song>) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
-    val allSongs by libraryViewModel.songs.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
-    val recentlyPlayed by getRecentlyPlayedUseCase(10)
+    // État depuis les ViewModels appropriés
+    val allSongs by libraryViewModel.songs.collectAsState()
+    val recentlyPlayed by forYouViewModel.getRecentlyPlayedUseCase(10)
+        .collectAsState(initial = emptyList())
+    val mostPlayed by forYouViewModel.getMostPlayedUseCase(10)
         .collectAsState(initial = emptyList())
 
-    val mostPlayed by getMostPlayedUseCase(10)
-        .collectAsState(initial = emptyList())
-
+    // Calcul des chansons récemment ajoutées
     val recentlyAdded = remember(allSongs) {
         allSongs
             .sortedByDescending { it.dateAdded }
             .take(10)
     }
 
+    // État de l'UI
     var showClearDialog by remember { mutableStateOf(false) }
     var sectionToClear by remember { mutableStateOf<ClearSection?>(null) }
-
-    val scope = rememberCoroutineScope()
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 16.dp)
     ) {
-        // Header
+        // Header avec bouton Clear All
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-
-                if (recentlyPlayed.isNotEmpty() || mostPlayed.isNotEmpty()) {
-                    TextButton(
-                        onClick = {
-                            sectionToClear = ClearSection.ALL
-                            showClearDialog = true
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.DeleteSweep,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Clear All")
-                    }
+            ForYouHeader(
+                hasContent = recentlyPlayed.isNotEmpty() || mostPlayed.isNotEmpty(),
+                onClearAllClick = {
+                    sectionToClear = ClearSection.ALL
+                    showClearDialog = true
                 }
-            }
+            )
         }
 
         item { Spacer(modifier = Modifier.height(24.dp)) }
 
-        // Recently Played
+        // Recently Played Section
         if (recentlyPlayed.isNotEmpty()) {
             item {
                 SectionHeader(
@@ -105,14 +82,13 @@ fun ForYouScreen(
             item {
                 HorizontalSongList(
                     songs = recentlyPlayed,
-                    playerViewModel = playerViewModel,
                     onSongClick = onSongClick
                 )
             }
             item { Spacer(modifier = Modifier.height(24.dp)) }
         }
 
-        // Most Played
+        // Most Played Section
         if (mostPlayed.isNotEmpty()) {
             item {
                 SectionHeader(
@@ -127,14 +103,13 @@ fun ForYouScreen(
             item {
                 HorizontalSongList(
                     songs = mostPlayed,
-                    playerViewModel = playerViewModel,
                     onSongClick = onSongClick
                 )
             }
             item { Spacer(modifier = Modifier.height(24.dp)) }
         }
 
-        // Recently Added
+        // Recently Added Section
         if (recentlyAdded.isNotEmpty()) {
             item {
                 SectionHeader(
@@ -146,13 +121,12 @@ fun ForYouScreen(
             item {
                 HorizontalSongList(
                     songs = recentlyAdded,
-                    playerViewModel = playerViewModel,
                     onSongClick = onSongClick
                 )
             }
         }
 
-        // Empty state
+        // Empty State
         if (recentlyPlayed.isEmpty() && mostPlayed.isEmpty() && recentlyAdded.isEmpty()) {
             item {
                 EmptyForYouState()
@@ -160,12 +134,16 @@ fun ForYouScreen(
         }
     }
 
+    // Dialog de confirmation
     if (showClearDialog && sectionToClear != null) {
         val (title, message) = when (sectionToClear) {
-            ClearSection.ALL -> "Clear All History" to "Remove all play history? This will clear Recently Played and Most Played."
-            ClearSection.RECENTLY_PLAYED -> "Clear Recently Played" to "Remove all songs from Recently Played?"
-            ClearSection.MOST_PLAYED -> "Clear Most Played" to "Remove all songs from Most Played?"
-            else -> "" to ""
+            ClearSection.ALL ->
+                "Clear All History" to "Remove all play history? This will clear Recently Played and Most Played."
+            ClearSection.RECENTLY_PLAYED ->
+                "Clear Recently Played" to "Remove all songs from Recently Played?"
+            ClearSection.MOST_PLAYED ->
+                "Clear Most Played" to "Remove all songs from Most Played?"
+            null -> "" to ""
         }
 
         ConfirmationDialog(
@@ -175,8 +153,14 @@ fun ForYouScreen(
             confirmText = "Clear",
             isDestructive = true,
             onConfirm = {
+                // ⬇️ CORRECTION : Utiliser un LaunchedEffect
+                showClearDialog = false
+                val sectionToProcess = sectionToClear
+                sectionToClear = null
+
+                // Déclencher l'action après fermeture du dialog
                 scope.launch {
-                    when (sectionToClear) {
+                    when (sectionToProcess) {
                         ClearSection.ALL -> {
                             forYouViewModel.clearPlayHistoryUseCase.clearAll()
                             context.showToast("History cleared")
@@ -192,8 +176,6 @@ fun ForYouScreen(
                         null -> {}
                     }
                 }
-                showClearDialog = false
-                sectionToClear = null
             },
             onDismiss = {
                 showClearDialog = false
@@ -202,60 +184,50 @@ fun ForYouScreen(
         )
     }
 }
+
+/**
+ * Types de sections à effacer
+ */
 enum class ClearSection {
     ALL,
     RECENTLY_PLAYED,
     MOST_PLAYED
 }
 
+/**
+ * Header avec bouton Clear All
+ */
 @Composable
-fun ClearHistoryDialog(
-    section: ClearSection?,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+private fun ForYouHeader(
+    hasContent: Boolean,
+    onClearAllClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    if (section == null) return
-
-    val (title, message) = when (section) {
-        ClearSection.ALL -> "Clear All History" to "Remove all play history? This will clear Recently Played and Most Played."
-        ClearSection.RECENTLY_PLAYED -> "Clear Recently Played" to "Remove all songs from Recently Played?"
-        ClearSection.MOST_PLAYED -> "Clear Most Played" to "Remove all songs from Most Played?"
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                imageVector = Icons.Outlined.DeleteSweep,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error
-            )
-        },
-        title = { Text(title) },
-        text = { Text(message) },
-        confirmButton = {
-            TextButton(
-                onClick = onConfirm,
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
+    if (hasContent) {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(onClick = onClearAllClick) {
+                Icon(
+                    imageVector = Icons.Outlined.DeleteSweep,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
                 )
-            ) {
-                Text("Clear")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Clear All")
             }
         }
-    )
+    }
 }
 
 @Composable
 fun SectionHeader(
     title: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClearClick: (() -> Unit)? = null,
+    onClearClick: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -298,10 +270,12 @@ fun SectionHeader(
     }
 }
 
+/**
+ * Liste horizontale de chansons
+ */
 @Composable
-fun HorizontalSongList(
+private fun HorizontalSongList(
     songs: List<Song>,
-    playerViewModel: PlayerViewModel,
     onSongClick: (Song, List<Song>) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -310,7 +284,7 @@ fun HorizontalSongList(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(songs) { song ->
+        items(songs, key = { it.id }) { song ->
             HorizontalSongCard(
                 song = song,
                 onClick = { onSongClick(song, songs) }
@@ -319,8 +293,11 @@ fun HorizontalSongList(
     }
 }
 
+/**
+ * Carte de chanson horizontale
+ */
 @Composable
-fun HorizontalSongCard(
+private fun HorizontalSongCard(
     song: Song,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -360,8 +337,11 @@ fun HorizontalSongCard(
     }
 }
 
+/**
+ * État vide avec message encourageant
+ */
 @Composable
-fun EmptyForYouState(modifier: Modifier = Modifier) {
+private fun EmptyForYouState(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxWidth()

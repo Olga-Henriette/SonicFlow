@@ -1,9 +1,14 @@
 package com.sonicflow.app.feature.player.presentation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -37,6 +42,8 @@ import com.sonicflow.app.feature.playlist.presentation.PlaylistViewModel
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PlayerScreen(
     viewModel: PlayerViewModel = hiltViewModel(),
@@ -52,8 +59,13 @@ fun PlayerScreen(
 
     var localPalette by remember { mutableStateOf<AlbumPalette?>(null) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
-    var showLyrics by remember { mutableStateOf(false) }
     var showWaveform by remember { mutableStateOf(false) }
+
+    // ⬇️ NOUVEAU : Pager pour swipe Music/Lyrics
+    val pagerState = rememberPagerState(
+        initialPage = 0,
+        pageCount = { 2 }
+    )
 
     // Extraction palette
     LaunchedEffect(state.currentSong?.albumId) {
@@ -78,21 +90,29 @@ fun PlayerScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    // Onglets Music / Lyrics
+                    // ⬇️ MODIFIER : Tabs avec sélection basée sur pager
                     Row(
                         horizontalArrangement = Arrangement.Center,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         TabButton(
                             text = "Music",
-                            selected = !showLyrics,
-                            onClick = { showLyrics = false }
+                            selected = pagerState.currentPage == 0,
+                            onClick = {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(0)
+                                }
+                            }
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         TabButton(
                             text = "Lyrics",
-                            selected = showLyrics,
-                            onClick = { showLyrics = true }
+                            selected = pagerState.currentPage == 1,
+                            onClick = {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(1)
+                                }
+                            }
                         )
                     }
                 },
@@ -102,7 +122,6 @@ fun PlayerScreen(
                     }
                 },
                 actions = {
-                    // Queue en haut à droite
                     BadgedBox(
                         badge = {
                             if (state.queue.size > 0) {
@@ -139,69 +158,79 @@ fun PlayerScreen(
             if (state.currentSong == null) {
                 NoSongPlaying(modifier = Modifier.align(Alignment.Center))
             } else {
-                if (showLyrics) {
-                    // Vue Lyrics (TODO)
-                    LyricsView(
-                        song = state.currentSong,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    // Vue Music
-                    MusicView(
-                        song = state.currentSong!!,
-                        isPlaying = state.isPlaying,
-                        currentPosition = state.currentPosition,
-                        duration = state.duration,
-                        isShuffled = state.isShuffled,
-                        repeatMode = state.repeatMode,
-                        isFavorite = state.currentSong?.isFavorite ?: false,
-                        primaryColor = primaryColor,
-                        sleepTimerMinutes = sleepTimerMinutes,
-                        showWaveform = showWaveform,
-                        onToggleWaveform = { showWaveform = !showWaveform },
-                        onPlayPause = {
-                            viewModel.handleIntent(PlayerIntent.PlayPause)
-                        },
-                        onNext = {
-                            viewModel.handleIntent(PlayerIntent.Next)
-                        },
-                        onPrevious = {
-                            viewModel.handleIntent(PlayerIntent.Previous)
-                        },
-                        onSeek = { position ->
-                            viewModel.handleIntent(PlayerIntent.SeekTo(position))
-                        },
-                        onFavoriteToggle = {
-                            viewModel.handleIntent(PlayerIntent.ToggleFavorite(state.currentSong!!.id))
-                        },
-                        onShuffleRepeatToggle = {
-                            // Cycle: OFF → All → Shuffle All → Repeat One → OFF
-                            when {
-                                !state.isShuffled && state.repeatMode == RepeatMode.OFF -> {
-                                    viewModel.handleIntent(PlayerIntent.ToggleRepeat) // → All
+                // HorizontalPager pour swipe
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    when (page) {
+                        0 -> {
+                            // Page Music
+                            MusicView(
+                                song = state.currentSong!!,
+                                isPlaying = state.isPlaying,
+                                currentPosition = state.currentPosition,
+                                duration = state.duration,
+                                isShuffled = state.isShuffled,
+                                repeatMode = state.repeatMode,
+                                isFavorite = state.currentSong?.isFavorite ?: false,
+                                primaryColor = primaryColor,
+                                sleepTimerMinutes = sleepTimerMinutes,
+                                showWaveform = showWaveform,
+                                hasNext = state.hasNext,
+                                hasPrevious = state.hasPrevious,
+                                onToggleWaveform = { showWaveform = !showWaveform },
+                                onPlayPause = {
+                                    viewModel.handleIntent(PlayerIntent.PlayPause)
+                                },
+                                onNext = {
+                                    viewModel.handleIntent(PlayerIntent.Next)
+                                },
+                                onPrevious = {
+                                    viewModel.handleIntent(PlayerIntent.Previous)
+                                },
+                                onSeek = { position ->
+                                    viewModel.handleIntent(PlayerIntent.SeekTo(position))
+                                },
+                                onFavoriteToggle = {
+                                    viewModel.handleIntent(PlayerIntent.ToggleFavorite(state.currentSong!!.id))
+                                },
+                                onShuffleRepeatToggle = {
+                                    when {
+                                        !state.isShuffled && state.repeatMode == RepeatMode.OFF -> {
+                                            viewModel.handleIntent(PlayerIntent.ToggleRepeat)
+                                        }
+                                        !state.isShuffled && state.repeatMode == RepeatMode.ALL -> {
+                                            viewModel.handleIntent(PlayerIntent.ToggleShuffle)
+                                        }
+                                        state.isShuffled && state.repeatMode == RepeatMode.ALL -> {
+                                            viewModel.handleIntent(PlayerIntent.ToggleRepeat)
+                                            viewModel.handleIntent(PlayerIntent.ToggleShuffle)
+                                        }
+                                        else -> {
+                                            viewModel.handleIntent(PlayerIntent.ToggleRepeat)
+                                        }
+                                    }
+                                },
+                                onSleepTimerClick = {
+                                    showSleepTimerDialog = true
                                 }
-                                !state.isShuffled && state.repeatMode == RepeatMode.ALL -> {
-                                    viewModel.handleIntent(PlayerIntent.ToggleShuffle) // → Shuffle All
-                                }
-                                state.isShuffled && state.repeatMode == RepeatMode.ALL -> {
-                                    viewModel.handleIntent(PlayerIntent.ToggleRepeat) // → Repeat One
-                                    viewModel.handleIntent(PlayerIntent.ToggleShuffle) // Désactiver shuffle
-                                }
-                                else -> {
-                                    viewModel.handleIntent(PlayerIntent.ToggleRepeat) // → OFF
-                                }
-                            }
-                        },
-                        onSleepTimerClick = {
-                            showSleepTimerDialog = true
+                            )
                         }
-                    )
+                        1 -> {
+                            // Page Lyrics
+                            LyricsView(
+                                song = state.currentSong,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 
-    // Dialogs
+    // Dialogs...
     if (showSleepTimerDialog) {
         SleepTimerDialog(
             currentTimerMinutes = sleepTimerMinutes,
@@ -217,7 +246,6 @@ fun PlayerScreen(
         )
     }
 }
-
 @Composable
 fun TabButton(
     text: String,
@@ -260,6 +288,8 @@ fun MusicView(
     primaryColor: Color,
     sleepTimerMinutes: Int?,
     showWaveform: Boolean,
+    hasNext: Boolean,
+    hasPrevious: Boolean,
     onToggleWaveform: () -> Unit,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
@@ -273,6 +303,7 @@ fun MusicView(
     var showAddToPlaylist by remember { mutableStateOf(false) }
     var showPlaybackControlsDialog by remember { mutableStateOf(false) }
     var showEqualizerDialog by remember { mutableStateOf(false) }
+    var showMoreMenu by remember { mutableStateOf(false) }
     val playlistViewModel: PlaylistViewModel = hiltViewModel()
     val playlists by playlistViewModel.playlists.collectAsState()
     val playerViewModel: PlayerViewModel = hiltViewModel()
@@ -334,12 +365,14 @@ fun MusicView(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
+
                 Text(
                     text = song.title,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.basicMarquee()
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -448,11 +481,62 @@ fun MusicView(
             }
 
             // More options
-            IconButton(onClick = { /* TODO */ }) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More"
-                )
+            Box {
+                IconButton(onClick = { showMoreMenu = true }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "More"
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showMoreMenu,
+                    onDismissRequest = { showMoreMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Share") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Share, null)
+                        },
+                        onClick = {
+                            showMoreMenu = false
+                            context.showToast("Share coming soon")
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Song info") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Info, null)
+                        },
+                        onClick = {
+                            showMoreMenu = false
+                            context.showToast("Song info coming soon")
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Go to artist") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Person, null)
+                        },
+                        onClick = {
+                            showMoreMenu = false
+                            context.showToast("Go to artist coming soon")
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Go to album") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Album, null)
+                        },
+                        onClick = {
+                            showMoreMenu = false
+                            context.showToast("Go to album coming soon")
+                        }
+                    )
+                }
             }
         }
 
@@ -498,12 +582,18 @@ fun MusicView(
             // Previous
             IconButton(
                 onClick = onPrevious,
-                modifier = Modifier.size(64.dp)
+                modifier = Modifier.size(64.dp),
+                enabled = hasPrevious
             ) {
                 Icon(
                     imageVector = Icons.Default.SkipPrevious,
                     contentDescription = "Previous",
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(40.dp),
+                    tint = if (hasPrevious) {
+                        LocalContentColor.current
+                    } else {
+                        LocalContentColor.current.copy(alpha = 0.38f)
+                    }
                 )
             }
 
@@ -526,12 +616,18 @@ fun MusicView(
             // Next
             IconButton(
                 onClick = onNext,
-                modifier = Modifier.size(64.dp)
+                modifier = Modifier.size(64.dp),
+                enabled = hasNext
             ) {
                 Icon(
                     imageVector = Icons.Default.SkipNext,
                     contentDescription = "Next",
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(40.dp),
+                    tint = if (hasNext) {
+                        LocalContentColor.current
+                    } else {
+                        LocalContentColor.current.copy(alpha = 0.38f)
+                    }
                 )
             }
 

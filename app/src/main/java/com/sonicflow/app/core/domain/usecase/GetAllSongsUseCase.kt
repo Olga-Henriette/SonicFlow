@@ -6,11 +6,6 @@ import com.sonicflow.app.core.domain.repository.MusicRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
-/**
- * Use Case : Récupérer toutes les chansons
- * - Délègue au Repository
- * - Point d'entrée unique pour cette action
- */
 class GetAllSongsUseCase @Inject constructor(
     private val repository: MusicRepository
 ) {

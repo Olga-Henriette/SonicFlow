@@ -8,31 +8,68 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.BackHandler
+import androidx.annotation.OptIn
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.rememberDrawerState
+import com.sonicflow.app.BuildConfig
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.sonicflow.app.core.ui.animation.TransitionAnimations
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.google.androidgamesdk.gametextinput.Settings
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import com.sonicflow.app.core.domain.model.Album
 import com.sonicflow.app.core.domain.model.Artist
 import com.sonicflow.app.core.domain.model.Playlist
+import com.sonicflow.app.core.domain.model.ThemeMode
+import com.sonicflow.app.core.domain.model.UserPreferences
+import com.sonicflow.app.core.domain.repository.PreferencesRepository
 import com.sonicflow.app.core.player.service.MusicService
 import com.sonicflow.app.core.ui.theme.SonicFlowTheme
 import com.sonicflow.app.feature.library.presentation.*
 import com.sonicflow.app.feature.player.presentation.*
 import com.sonicflow.app.feature.playlist.presentation.PlaylistDetailScreen
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
 import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 @AndroidEntryPoint
@@ -54,6 +91,7 @@ class MainActivity : ComponentActivity() {
         requestAudioPermission()
     }
 
+    @OptIn(UnstableApi::class)
     private fun startMusicService() {
         val intent = Intent(this, MusicService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -64,6 +102,7 @@ class MainActivity : ComponentActivity() {
         Timber.d("MusicService started")
     }
 
+    @OptIn(UnstableApi::class)
     private fun initializeMediaController() {
         val sessionToken = SessionToken(
             this,
@@ -92,8 +131,22 @@ class MainActivity : ComponentActivity() {
 
     private fun setupUI() {
         setContent {
+            val preferencesRepository: PreferencesRepository by lazy {
+                (application as? SonicFlowApp)?.let {
+                    EntryPointAccessors.fromApplication(
+                        applicationContext,
+                        PreferencesEntryPoint::class.java
+                    ).preferencesRepository()
+                } ?: throw IllegalStateException("PreferencesRepository not available")
+            }
+
+            val preferences by preferencesRepository.userPreferences.collectAsState(
+                initial = UserPreferences.DEFAULT
+            )
+
             SonicFlowTheme {
                 val view = LocalView.current
+
                 val colorScheme = MaterialTheme.colorScheme
 
                 SideEffect {
@@ -106,15 +159,45 @@ class MainActivity : ComponentActivity() {
                     controller.isAppearanceLightNavigationBars = isLight
                 }
 
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = colorScheme.background
+                val isDarkTheme = when (preferences.themeMode) {
+                    ThemeMode.LIGHT -> false
+                    ThemeMode.DARK -> true
+                    ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                }
+                
+                SonicFlowTheme(
+                    darkTheme = isDarkTheme,
+                    accentColor = preferences.accentColor,
+                    fontScale = preferences.fontSettings.sizeScale
                 ) {
-                    AppNavigation()
+                    val view = LocalView.current
+                    val colorScheme = MaterialTheme.colorScheme
+
+                    SideEffect {
+                        val window = (view.context as ComponentActivity).window
+                        val controller = WindowCompat.getInsetsController(window, view)
+                        window.statusBarColor = android.graphics.Color.TRANSPARENT
+                        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+                        val isLight = colorScheme.background.luminance() > 0.5f
+                        controller.isAppearanceLightStatusBars = isLight
+                        controller.isAppearanceLightNavigationBars = isLight
+                    }
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = colorScheme.background
+                    ) {
+                        AppNavigation()
+                    }
                 }
             }
         }
     }
+}
+
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface PreferencesEntryPoint {
+    fun preferencesRepository(): PreferencesRepository
 }
 
 sealed class Screen {
@@ -124,6 +207,8 @@ sealed class Screen {
     data class AlbumDetail(val album: Album, val sourceTab: Int) : Screen()
     data class ArtistDetail(val artist: Artist, val sourceTab: Int) : Screen()
     data object Queue : Screen()
+    data object Settings : Screen()
+    data object ThemeCustomization : Screen()
 }
 
 @Composable
@@ -132,6 +217,9 @@ fun AppNavigation() {
         mutableStateOf(listOf<Screen>(Screen.Library(tab = 0)))
     }
     val playerViewModel: PlayerViewModel = hiltViewModel()
+
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
     val currentLibraryTab = remember(navigationStack) {
         (navigationStack.last() as? Screen.Library)?.tab ?: 0
@@ -150,115 +238,252 @@ fun AppNavigation() {
     }
 
     val currentScreen = navigationStack.last()
+
+    BackHandler(enabled = navigationStack.size > 1) {
+        navigateBack()
+    }
+
     val previousScreen = navigationStack.getOrNull(navigationStack.size - 2)
 
-    AnimatedContent(
-        targetState = currentScreen,
-        transitionSpec = {
-            when {
-                targetState is Screen.Player && initialState is Screen.Library -> {
-                    TransitionAnimations.slideVertical()
-                }
-                initialState is Screen.Player && targetState is Screen.Library -> {
-                    TransitionAnimations.slideVertical()
-                }
-                (targetState is Screen.PlaylistDetail ||
-                        targetState is Screen.AlbumDetail ||
-                        targetState is Screen.ArtistDetail) && initialState is Screen.Library -> {
-                    TransitionAnimations.slideHorizontalWithScale()
-                }
-                (initialState is Screen.PlaylistDetail ||
-                        initialState is Screen.AlbumDetail ||
-                        initialState is Screen.ArtistDetail) && targetState is Screen.Library -> {
-                    TransitionAnimations.slideBack()
-                }
-                targetState is Screen.Queue && initialState is Screen.Player -> {
-                    TransitionAnimations.slideHorizontalWithScale()
-                }
-                initialState is Screen.Queue && targetState is Screen.Player -> {
-                    TransitionAnimations.slideBack()
-                }
-                else -> {
-                    TransitionAnimations.fade()
-                }
-            }
-        },
-        label = "screen transition"
-    ) { screen ->
-        when (screen) {
-            is Screen.Library -> {
-                LibraryScreen(
-                    playerViewModel = playerViewModel,
-                    initialTab = screen.tab,
-                    onTabChanged = { newTab ->
-                        navigationStack = navigationStack.dropLast(1) + Screen.Library(tab = newTab)
-                    },
-                    onSongClick = { song, allSongs ->
-                        val startIndex = allSongs.indexOf(song)
-                        playerViewModel.handleIntent(
-                            PlayerIntent.PlayQueue(
-                                songs = allSongs,
-                                startIndex = startIndex
-                            )
-                        )
-                        navigateTo(Screen.Player)
-                    },
-                    onPlaylistClick = { playlist ->
-                        navigateTo(Screen.PlaylistDetail(playlist, sourceTab = screen.tab))
-                    },
-                    onAlbumClick = { album ->
-                        navigateTo(Screen.AlbumDetail(album, sourceTab = screen.tab))
-                    },
-                    onArtistClick = { artist ->
-                        navigateTo(Screen.ArtistDetail(artist, sourceTab = screen.tab))
-                    },
-                    onMiniPlayerClick = {
-                        navigateTo(Screen.Player)
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        gesturesEnabled = currentScreen is Screen.Library,
+        drawerContent = {
+            AppDrawer(
+                currentScreen = currentScreen,
+                onNavigateToSettings = {
+                    scope.launch {
+                        drawerState.close()
+                        navigateTo(Screen.Settings)
                     }
-                )
+                },
+                onNavigateToLibrary = {
+                    scope.launch {
+                        drawerState.close()
+                        if (currentScreen !is Screen.Library) {
+                            while (navigationStack.size > 1) {
+                                navigationStack = navigationStack.dropLast(1)
+                            }
+                        }
+                    }
+                },
+                onClose = {
+                    scope.launch { drawerState.close() }
+                }
+            )
+        }
+    ) {
+        AnimatedContent(
+            targetState = currentScreen,
+            transitionSpec = {
+                when {
+                    targetState is Screen.Player && initialState is Screen.Library -> {
+                        TransitionAnimations.slideVertical()
+                    }
+                    initialState is Screen.Player && targetState is Screen.Library -> {
+                        TransitionAnimations.slideVertical()
+                    }
+                    (targetState is Screen.PlaylistDetail ||
+                            targetState is Screen.AlbumDetail ||
+                            targetState is Screen.ArtistDetail ||
+                            targetState is Screen.Settings) && initialState is Screen.Library -> {
+                        TransitionAnimations.slideHorizontalWithScale()
+                    }
+                    (initialState is Screen.PlaylistDetail ||
+                            initialState is Screen.AlbumDetail ||
+                            initialState is Screen.ArtistDetail ||
+                            initialState is Screen.Settings) && targetState is Screen.Library -> {
+                        TransitionAnimations.slideBack()
+                    }
+                    targetState is Screen.Queue && initialState is Screen.Player -> {
+                        TransitionAnimations.slideHorizontalWithScale()
+                    }
+                    initialState is Screen.Queue && targetState is Screen.Player -> {
+                        TransitionAnimations.slideBack()
+                    }
+                    else -> {
+                        TransitionAnimations.fade()
+                    }
+                }
+            },
+            label = "screen transition"
+        ) { screen ->
+            when (screen) {
+                is Screen.Library -> {
+                    LibraryScreen(
+                        playerViewModel = playerViewModel,
+                        initialTab = screen.tab,
+                        onTabChanged = { newTab ->
+                            navigationStack = navigationStack.dropLast(1) + Screen.Library(tab = newTab)
+                        },
+                        onSongClick = { song, allSongs ->
+                            val startIndex = allSongs.indexOf(song)
+                            playerViewModel.handleIntent(
+                                PlayerIntent.PlayQueue(
+                                    songs = allSongs,
+                                    startIndex = startIndex
+                                )
+                            )
+                            navigateTo(Screen.Player)
+                        },
+                        onPlaylistClick = { playlist ->
+                            navigateTo(Screen.PlaylistDetail(playlist, sourceTab = screen.tab))
+                        },
+                        onAlbumClick = { album ->
+                            navigateTo(Screen.AlbumDetail(album, sourceTab = screen.tab))
+                        },
+                        onArtistClick = { artist ->
+                            navigateTo(Screen.ArtistDetail(artist, sourceTab = screen.tab))
+                        },
+                        onMiniPlayerClick = {
+                            navigateTo(Screen.Player)
+                        },
+                        onOpenDrawer = {
+                            scope.launch { drawerState.open() }
+                        }
+                    )
+                }
+
+                Screen.Player -> {
+                    PlayerScreen(
+                        viewModel = playerViewModel,
+                        onNavigateBack = { navigateBack() },
+                        onQueueClick = { navigateTo(Screen.Queue) }
+                    )
+                }
+
+                is Screen.PlaylistDetail -> {
+                    PlaylistDetailScreen(
+                        playlist = screen.playlist,
+                        playerViewModel = playerViewModel,
+                        onNavigateBack = { navigateBack() },
+                        onMiniPlayerClick = { navigateTo(Screen.Player) }
+                    )
+                }
+
+                is Screen.AlbumDetail -> {
+                    AlbumDetailScreen(
+                        album = screen.album,
+                        playerViewModel = playerViewModel,
+                        onNavigateBack = { navigateBack() },
+                        onMiniPlayerClick = { navigateTo(Screen.Player) }
+                    )
+                }
+
+                is Screen.ArtistDetail -> {
+                    ArtistDetailScreen(
+                        artist = screen.artist,
+                        playerViewModel = playerViewModel,
+                        onNavigateBack = { navigateBack() },
+                        onMiniPlayerClick = { navigateTo(Screen.Player) }
+                    )
+                }
+
+                Screen.Queue -> {
+                    QueueScreen(
+                        viewModel = playerViewModel,
+                        onNavigateBack = { navigateBack() },
+                        onMiniPlayerClick = { navigateBack() }
+                    )
+                }
+
+                // Settings
+                Screen.Settings -> {
+                    com.sonicflow.app.feature.settings.presentation.SettingsScreen(
+                        onNavigateBack = { navigateBack() },
+                        onNavigateToThemeCustomization = {
+                            navigateTo(Screen.ThemeCustomization)
+                        }
+                    )
+                }
+
+                Screen.ThemeCustomization -> {
+                    com.sonicflow.app.feature.settings.presentation.ThemeCustomizationScreen(
+                        onNavigateBack = { navigateBack() }
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun AppDrawer(
+    currentScreen: Screen,
+    onNavigateToSettings: () -> Unit,
+    onNavigateToLibrary: () -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    ModalDrawerSheet(
+        modifier = modifier.fillMaxWidth(0.75f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "SonicFlow",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Music Player",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                IconButton(onClick = onClose) {
+                    Icon(Icons.Default.Close, "Close")
+                }
             }
 
-            Screen.Player -> {
-                PlayerScreen(
-                    viewModel = playerViewModel,
-                    onNavigateBack = { navigateBack() },
-                    onQueueClick = { navigateTo(Screen.Queue) }
-                )
-            }
+            Divider()
 
-            is Screen.PlaylistDetail -> {
-                PlaylistDetailScreen(
-                    playlist = screen.playlist,
-                    playerViewModel = playerViewModel,
-                    onNavigateBack = { navigateBack() },
-                    onMiniPlayerClick = { navigateTo(Screen.Player) }
-                )
-            }
+            Spacer(modifier = Modifier.height(16.dp))
 
-            is Screen.AlbumDetail -> {
-                AlbumDetailScreen(
-                    album = screen.album,
-                    playerViewModel = playerViewModel,
-                    onNavigateBack = { navigateBack() },
-                    onMiniPlayerClick = { navigateTo(Screen.Player) }
-                )
-            }
+            // Library
+            NavigationDrawerItem(
+                label = { Text("Library") },
+                icon = { Icon(Icons.Default.MusicNote, null) },
+                selected = currentScreen is Screen.Library,
+                onClick = onNavigateToLibrary
+            )
 
-            is Screen.ArtistDetail -> {
-                ArtistDetailScreen(
-                    artist = screen.artist,
-                    playerViewModel = playerViewModel,
-                    onNavigateBack = { navigateBack() },
-                    onMiniPlayerClick = { navigateTo(Screen.Player) }
-                )
-            }
+            // Settings
+            NavigationDrawerItem(
+                label = { Text("Settings") },
+                icon = { Icon(Icons.Default.Settings, null) },
+                selected = currentScreen is Screen.Settings,
+                onClick = onNavigateToSettings
+            )
 
-            Screen.Queue -> {
-                QueueScreen(
-                    viewModel = playerViewModel,
-                    onNavigateBack = { navigateBack() }
-                )
-            }
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Footer
+            Divider()
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Version ${BuildConfig.VERSION_NAME}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
         }
     }
 }
