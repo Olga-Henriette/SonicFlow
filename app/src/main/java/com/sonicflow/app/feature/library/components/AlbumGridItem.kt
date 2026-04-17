@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.sonicflow.app.core.common.buildHighlightedText
 import com.sonicflow.app.core.domain.model.Album
 import com.sonicflow.app.core.ui.components.AlbumArtImage
 
@@ -18,6 +19,7 @@ import com.sonicflow.app.core.ui.components.AlbumArtImage
 @Composable
 fun AlbumGridItem(
     album: Album,
+    searchQuery: String = "",
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -28,7 +30,6 @@ fun AlbumGridItem(
         Column(
             modifier = Modifier.padding(12.dp)
         ) {
-            // Album art
             AlbumArtImage(
                 albumId = album.id,
                 contentDescription = album.name,
@@ -40,7 +41,11 @@ fun AlbumGridItem(
 
             // Album name
             Text(
-                text = album.name,
+                text = buildHighlightedText(
+                    fullText = album.name,
+                    query = searchQuery,
+                    highlightColor = MaterialTheme.colorScheme.primary
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,

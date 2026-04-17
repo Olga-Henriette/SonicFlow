@@ -3,6 +3,8 @@ package com.sonicflow.app.feature.player.components
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,8 +17,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -304,26 +310,26 @@ fun EqualizerBands(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(300.dp),
+            .height(300.dp)
+            .padding(horizontal = 4.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.Bottom
+        verticalAlignment = Alignment.CenterVertically
     ) {
         for (band in 0 until numberOfBands) {
-            EqualizerBand(
-                enabled = enabled,
-                bandIndex = band,
-                level = bandLevels.getOrNull(band) ?: 0,
-                minLevel = bandLevelRange.first,
-                maxLevel = bandLevelRange.second,
-                frequency = getBandFrequency(band),
-                onLevelChange = { level ->
-                    onBandLevelChange(band, level)
-                }
-            )
+            Box(modifier = Modifier.weight(1f)) {
+                EqualizerBand(
+                    enabled = enabled,
+                    bandIndex = band,
+                    level = bandLevels.getOrNull(band) ?: 0,
+                    minLevel = bandLevelRange.first,
+                    maxLevel = bandLevelRange.second,
+                    frequency = getBandFrequency(band),
+                    onLevelChange = { level -> onBandLevelChange(band, level) }
+                )
+            }
         }
     }
 }
-
 
 @Composable
 fun EqualizerBand(
@@ -337,81 +343,67 @@ fun EqualizerBand(
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier.width(60.dp),
+        modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Niveau en dB
-        Text(
-            text = "${level / 100}dB",
-            style = MaterialTheme.typography.labelSmall,
-            color = if (enabled) {
-                MaterialTheme.colorScheme.onSurface
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            }
-        )
+        Text(text = "${level / 100}dB", style = MaterialTheme.typography.labelSmall)
 
-        // Slider vertical simplifié
+        // Zone tactile personnalisée
         Box(
             modifier = Modifier
-                .width(40.dp)
-                .height(200.dp),
+                .height(200.dp)
+                .fillMaxWidth()
+                .pointerInput(enabled) {
+                    if (!enabled) return@pointerInput
+                    detectTapGestures { offset ->
+                        // Calcul du niveau selon l'endroit où on appuie
+                        val ratio = 1f - (offset.y / size.height).coerceIn(0f, 1f)
+                        val newLevel = (minLevel + (maxLevel - minLevel) * ratio).toInt().toShort()
+                        onLevelChange(newLevel)
+                    }
+                }
+                .pointerInput(enabled) {
+                    if (!enabled) return@pointerInput
+                    detectDragGestures { change, _ ->
+                        // Calcul du niveau pendant qu'on glisse
+                        val ratio = 1f - (change.position.y / size.height).coerceIn(0f, 1f)
+                        val newLevel = (minLevel + (maxLevel - minLevel) * ratio).toInt().toShort()
+                        onLevelChange(newLevel)
+                    }
+                },
             contentAlignment = Alignment.BottomCenter
         ) {
-            // Barre de fond
+            // Fond de la barre
             Box(
                 modifier = Modifier
                     .width(8.dp)
                     .fillMaxHeight()
-                    .background(
-                        MaterialTheme.colorScheme.surfaceVariant,
-                        RoundedCornerShape(4.dp)
-                    )
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
             )
 
-            // Barre de niveau
-            val normalizedLevel = ((level - minLevel).toFloat() / (maxLevel - minLevel).toFloat())
-                .coerceIn(0f, 1f)
+            // Barre de progression (Dégradé)
+            val normalizedLevel = ((level - minLevel).toFloat() / (maxLevel - minLevel).toFloat()).coerceIn(0f, 1f)
 
             Box(
                 modifier = Modifier
-                    .width(8.dp)
+                    .width(12.dp)
                     .fillMaxHeight(normalizedLevel)
+                    .clip(RoundedCornerShape(6.dp))
                     .background(
-                        if (enabled) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant
-                        },
-                        RoundedCornerShape(4.dp)
+                        Brush.verticalGradient(
+                            listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)
+                        )
                     )
-            )
-
-            // Slider invisible pour l'interaction
-            Slider(
-                value = level.toFloat(),
-                onValueChange = { onLevelChange(it.toInt().toShort()) },
-                valueRange = minLevel.toFloat()..maxLevel.toFloat(),
-                enabled = enabled,
-                modifier = Modifier.fillMaxHeight(),
-                colors = SliderDefaults.colors(
-                    thumbColor = androidx.compose.ui.graphics.Color.Transparent,
-                    activeTrackColor = androidx.compose.ui.graphics.Color.Transparent,
-                    inactiveTrackColor = androidx.compose.ui.graphics.Color.Transparent
-                )
             )
         }
 
-        // Fréquence
         Text(
-            text = frequency,
+            text = frequency.replace(" ", "\n"),
             style = MaterialTheme.typography.labelSmall,
-            color = if (enabled) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            }
+            textAlign = TextAlign.Center,
+            lineHeight = 12.sp,
+            modifier = Modifier.padding(top = 8.dp)
         )
     }
 }

@@ -28,6 +28,7 @@ fun LibraryPagerContent(
     isRefreshing: Boolean,
     error: String?,
     filteredSongs: List<Song>,
+    searchQuery: String,
     filteredFavorites: List<Song>,
     filteredPlaylists: List<Playlist>,
     filteredAlbums: List<Album>,
@@ -82,6 +83,7 @@ fun LibraryPagerContent(
                         )
                         1 -> SongsList(
                             songs = filteredSongs,
+                            searchQuery = searchQuery,
                             playerViewModel = playerViewModel,
                             currentSong = currentSong,
                             isPlaying = isPlaying,
@@ -89,6 +91,7 @@ fun LibraryPagerContent(
                         )
                         2 -> SongsList(
                             songs = filteredFavorites,
+                            searchQuery = searchQuery,
                             playerViewModel = playerViewModel,
                             currentSong = currentSong,
                             isPlaying = isPlaying,
@@ -97,14 +100,17 @@ fun LibraryPagerContent(
                         )
                         3 -> PlaylistsScreen(
                             filteredPlaylists = filteredPlaylists,
+                            searchQuery = searchQuery,
                             onPlaylistClick = onPlaylistClick
                         )
                         4 -> AlbumsScreen(
                             filteredAlbums = filteredAlbums,
+                            searchQuery = searchQuery,
                             onAlbumClick = onAlbumClick
                         )
                         5 -> ArtistsScreen(
                             filteredArtists = filteredArtists,
+                            searchQuery = searchQuery,
                             onArtistClick = onArtistClick
                         )
                     }

@@ -288,6 +288,7 @@ fun LibraryScreen(
             isRefreshing = isRefreshing,
             error = error,
             filteredSongs = filteredSongs,
+            searchQuery = searchQuery,
             filteredFavorites = filteredFavorites,
             filteredPlaylists = filteredPlaylists,
             filteredAlbums = filteredAlbums,

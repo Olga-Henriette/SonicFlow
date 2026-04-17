@@ -20,13 +20,13 @@ import com.sonicflow.app.feature.library.components.AlbumGridItem
 @Composable
 fun AlbumsScreen(
     filteredAlbums: List<Album>? = null,
+    searchQuery: String = "",
     onAlbumClick: (Album) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val viewModel: LibraryViewModel = hiltViewModel()
     val songs by viewModel.songs.collectAsState()
 
-    // Utiliser filteredAlbums si fourni
     val albums = filteredAlbums ?: remember(songs) {
         songs
             .groupBy { it.albumId }
@@ -78,6 +78,7 @@ fun AlbumsScreen(
             items(albums, key = { it.id }) { album ->
                 AlbumGridItem(
                     album = album,
+                    searchQuery = searchQuery,
                     onClick = { onAlbumClick(album) }
                 )
             }

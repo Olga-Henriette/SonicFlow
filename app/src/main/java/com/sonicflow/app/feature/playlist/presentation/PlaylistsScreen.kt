@@ -18,6 +18,7 @@ import com.sonicflow.app.core.domain.model.Playlist
 @Composable
 fun PlaylistsScreen(
     filteredPlaylists: List<Playlist>? = null,
+    searchQuery: String = "",
     viewModel: PlaylistViewModel = hiltViewModel(),
     onPlaylistClick: (Playlist) -> Unit = {},
     modifier: Modifier = Modifier
@@ -28,7 +29,6 @@ fun PlaylistsScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var playlistToDelete by remember { mutableStateOf<Playlist?>(null) }
 
-    // Utiliser filteredPlaylists si fourni, sinon playlists
     val displayPlaylists = filteredPlaylists ?: playlists
 
     Scaffold(
@@ -83,6 +83,7 @@ fun PlaylistsScreen(
                         items(displayPlaylists, key = { it.id }) { playlist ->
                             PlaylistItem(
                                 playlist = playlist,
+                                searchQuery = searchQuery,
                                 onClick = { onPlaylistClick(playlist) },
                                 onDeleteClick = { playlistToDelete = playlist }
                             )
@@ -137,6 +138,7 @@ fun PlaylistsScreen(
 @Composable
 private fun PlaylistItem(
     playlist: Playlist,
+    searchQuery: String = "",
     onClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier

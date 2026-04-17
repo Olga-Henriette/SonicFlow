@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
@@ -118,7 +119,7 @@ fun CircularAlbumArt(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp), // Padding pour la bordure
+                .padding(12.dp),
             contentAlignment = Alignment.Center
         ) {
             AlbumArtImageCircular(
@@ -151,19 +152,20 @@ private fun AlbumArtImageCircular(
         SubcomposeAsyncImage(
             model = ImageRequest.Builder(context)
                 .data(albumArtLoader.getAlbumArtUri(albumId))
-                .size(coil3.size.Size.ORIGINAL)
                 .crossfade(true)
                 .build(),
             contentDescription = contentDescription,
             contentScale = ContentScale.Crop,
             alignment = Alignment.Center,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = 1.1f,
+                    scaleY = 1.7f
+                ),
+            clipToBounds = true,
             loading = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                )
+                Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant))
             },
             error = {
                 Box(

@@ -24,7 +24,7 @@ class EqualizerController @Inject constructor() {
     // Présets personnalisés
     data class EqualizerPreset(
         val name: String,
-        val bandLevels: List<Short>, // Niveaux pour chaque bande
+        val bandLevels: List<Short>,
         val bassBoostStrength: Short = 0,
         val reverbPreset: Short = PresetReverb.PRESET_NONE
     )
@@ -138,13 +138,17 @@ class EqualizerController @Inject constructor() {
      */
     fun setEnabled(enabled: Boolean) {
         try {
+            this.isEnabled = enabled
             equalizer?.enabled = enabled
             bassBoost?.enabled = enabled
             presetReverb?.enabled = enabled
-            isEnabled = enabled
-            Timber.d("Equalizer enabled: $enabled")
+
+            if (enabled) {
+                val settings = getCurrentSettings()
+                applyPreset(settings)
+            }
         } catch (e: Exception) {
-            Timber.e(e, "Failed to toggle equalizer")
+            Timber.e(e, "Échec de l'activation de l'égaliseur")
         }
     }
 

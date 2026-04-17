@@ -103,10 +103,10 @@ class EqualizerViewModel @Inject constructor(
 
     fun setBassBoost(strength: Short) {
         equalizerController.setBassBoostStrength(strength)
-        _state.update {
-            it.copy(
+        _state.update { currentState ->
+            currentState.copy(
                 bassBoostStrength = strength,
-                selectedPreset = if (it.selectedPreset != "Custom") "Custom" else it.selectedPreset
+                selectedPreset = "Custom"
             )
         }
     }

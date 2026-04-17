@@ -1,12 +1,15 @@
 package com.sonicflow.app.core.player.controller
 
 import android.content.Context
-import androidx.annotation.OptIn
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
+import android.os.Build
+import androidx.annotation.RequiresApi
+import android.annotation.SuppressLint
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import com.sonicflow.app.core.domain.model.Song
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -17,19 +20,13 @@ import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Contrôleur du lecteur audio
- * - Abstraction d'ExoPlayer
- * - Gère la lecture, pause, skip, etc.
- * - Émet les changements d'état via Flow
- */
 @Singleton
 class PlayerController @Inject constructor(
     @ApplicationContext private val context: Context,
     val equalizerController: EqualizerController
 ) {
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-    // États du player
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
 
@@ -42,87 +39,118 @@ class PlayerController @Inject constructor(
     private val _currentSong = MutableStateFlow<Song?>(null)
     val currentSong: StateFlow<Song?> = _currentSong.asStateFlow()
 
-    // Listener pour les événements ExoPlayer
     var onSongEnded: (() -> Unit)? = null
-    var onMediaItemTransition: ((Int) -> Unit)? = null
-
+    var onMediaItemTransition: ((Long) -> Unit)? = null
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _isPlaying.value = isPlaying
-            Timber.d("Player isPlaying: $isPlaying")
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
-            when (playbackState) {
-                Player.STATE_READY -> {
-                    _duration.value = exoPlayer.duration.coerceAtLeast(0)
-                    Timber.d("Player ready, duration: ${_duration.value}")
-                }
-                Player.STATE_ENDED -> {
-                    Timber.d("Player ended - calling onSongEnded")
-                    onSongEnded?.invoke()
-                }
-                Player.STATE_BUFFERING -> {
-                    Timber.d("Player buffering")
-                }
-                Player.STATE_IDLE -> {
-                    Timber.d("Player idle")
-                }
+            if (playbackState == Player.STATE_READY) {
+                _duration.value = exoPlayer.duration.coerceAtLeast(0)
+            } else if (playbackState == Player.STATE_ENDED) {
+                onSongEnded?.invoke()
+            }
+        }
+
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            mediaItem?.let { item ->
+                val songId = item.mediaId.toLongOrNull() ?: return
+                onMediaItemTransition?.invoke(songId)
             }
         }
     }
 
-    // ExoPlayer instance
-    private val exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build().apply {
-        // Écouter les événements du player
-        addListener(playerListener)
+    private fun findSongInCurrentQueue(mediaId: String): Song? {
+        return null
+    }
 
+    private val exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build().apply {
+        addListener(playerListener)
         repeatMode = Player.REPEAT_MODE_OFF
     }
 
     init {
-        // Initialiser l'equalizer quand le player est prêt
         exoPlayer.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_READY) {
-                    // Utiliser le player directement
                     equalizerController.initialize(exoPlayer)
                 }
             }
         })
     }
 
-    /**
-     * Jouer une chanson
-     */
-    fun playSong(song: Song) {
-        Timber.d("Playing song: ${song.title}")
+    private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_LOSS -> pause()
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pause()
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> exoPlayer.volume = 0.2f
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                exoPlayer.volume = 1.0f
+                play()
+            }
+        }
+    }
 
-        val mediaMetadata = androidx.media3.common.MediaMetadata.Builder()
-            .setTitle(song.title)
-            .setArtist(song.artist)
-            .setAlbumTitle(song.album)
-            .setDisplayTitle(song.title)
-            .setSubtitle(song.artist)
+    /**
+     * Gère la requête de focus audio de manière sécurisée selon la version d'Android
+     */
+    private fun requestAudioFocus(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            requestAudioFocusOreo()
+        } else {
+            requestAudioFocusLegacy()
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    @SuppressLint("NewApi")
+    private fun requestAudioFocusLegacy(): Boolean {
+        return audioManager.requestAudioFocus(
+            audioFocusChangeListener,
+            AudioManager.STREAM_MUSIC,
+            AudioManager.AUDIOFOCUS_GAIN
+        ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun requestAudioFocusOreo(): Boolean {
+        val playbackAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
             .build()
+
+        val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(playbackAttributes)
+            .setAcceptsDelayedFocusGain(true)
+            .setOnAudioFocusChangeListener(audioFocusChangeListener)
+            .build()
+
+        return audioManager.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    }
+
+    fun playSong(song: Song) {
+        if (!requestAudioFocus()) return
 
         val mediaItem = MediaItem.Builder()
             .setUri(song.uri)
             .setMediaId(song.id.toString())
-            .setMediaMetadata(mediaMetadata)
+            .setMediaMetadata(
+                androidx.media3.common.MediaMetadata.Builder()
+                    .setTitle(song.title)
+                    .setArtist(song.artist)
+                    .build()
+            )
             .build()
 
         exoPlayer.setMediaItem(mediaItem)
         exoPlayer.prepare()
         exoPlayer.play()
-
         _currentSong.value = song
     }
 
-    /**
-     * Définir une queue de chansons
-     */
     fun setQueue(songs: List<Song>, startIndex: Int = 0) {
         Timber.d("Setting queue: ${songs.size} songs, start at $startIndex")
 
@@ -147,25 +175,11 @@ class PlayerController @Inject constructor(
         exoPlayer.play()
     }
 
-
-    /**
-     * Définir la vitesse de lecture (0.5x à 2.0x)
-     */
     fun setPlaybackSpeed(speed: Float) {
-        try {
-            val constrainedSpeed = speed.coerceIn(0.25f, 3.0f)
-            val currentPitch = exoPlayer.playbackParameters.pitch
-
-            exoPlayer.playbackParameters = PlaybackParameters(constrainedSpeed, currentPitch)
-            Timber.d("Playback speed set to: ${constrainedSpeed}x")
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to set playback speed")
-        }
+        val constrainedSpeed = speed.coerceIn(0.25f, 3.0f)
+        exoPlayer.playbackParameters = PlaybackParameters(constrainedSpeed, exoPlayer.playbackParameters.pitch)
     }
 
-    /**
-     * Définir le pitch (0.5x à 2.0x)
-     */
     fun setPitch(pitch: Float) {
         try {
             val constrainedPitch = pitch.coerceIn(0.25f, 3.0f)
@@ -197,25 +211,17 @@ class PlayerController @Inject constructor(
      * Play / Pause
      */
     fun togglePlayPause() {
-        if (exoPlayer.isPlaying) {
-            exoPlayer.pause()
-        } else {
-            exoPlayer.play()
-        }
+        if (exoPlayer.isPlaying) pause() else play()
     }
 
-    /**
-     * Pause
-     */
     fun pause() {
         exoPlayer.pause()
     }
 
-    /**
-     * Resume
-     */
     fun play() {
-        exoPlayer.play()
+        if (requestAudioFocus()) {
+            exoPlayer.play()
+        }
     }
 
     /**
@@ -240,24 +246,13 @@ class PlayerController @Inject constructor(
      */
     fun getExoPlayer(): ExoPlayer = exoPlayer
 
-    /**
-     * Mettre à jour la position actuelle (appelé périodiquement)
-     */
     fun updatePosition() {
         if (exoPlayer.isPlaying) {
             _currentPosition.value = exoPlayer.currentPosition.coerceAtLeast(0)
         }
     }
-    
-    fun next() {
-        if (exoPlayer.hasNextMediaItem()) {
-            exoPlayer.seekToNextMediaItem()
-        }
-    }
 
-    fun previous() {
-        if (exoPlayer.hasPreviousMediaItem()) {
-            exoPlayer.seekToPreviousMediaItem()
-        }
-    }
+    fun next() = if (exoPlayer.hasNextMediaItem()) exoPlayer.seekToNextMediaItem() else Unit
+
+    fun previous() = if (exoPlayer.hasPreviousMediaItem()) exoPlayer.seekToPreviousMediaItem() else Unit
 }

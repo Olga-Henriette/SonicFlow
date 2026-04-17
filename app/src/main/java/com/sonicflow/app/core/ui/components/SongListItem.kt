@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.sonicflow.app.core.common.buildHighlightedText
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import com.sonicflow.app.core.common.formatDuration
@@ -31,6 +32,7 @@ fun SongListItem(
     song: Song,
     isCurrentlyPlaying: Boolean = false,
     isPlaying: Boolean = false,
+    searchQuery: String = "",
     onSongClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     onMoreClick: () -> Unit,
@@ -63,14 +65,14 @@ fun SongListItem(
                 }
 
                 Text(
-                    text = song.title,
+                    text = buildHighlightedText(
+                        fullText = song.title,
+                        query = searchQuery,
+                        highlightColor = MaterialTheme.colorScheme.primary
+                    ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    color = if (isCurrentlyPlaying) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    }
+                    color = if (isCurrentlyPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                 )
             }
         },

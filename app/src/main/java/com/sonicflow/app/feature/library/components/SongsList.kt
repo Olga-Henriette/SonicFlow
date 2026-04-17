@@ -21,6 +21,7 @@ import com.sonicflow.app.feature.playlist.presentation.PlaylistViewModel
 @Composable
 fun SongsList(
     songs: List<Song>,
+    searchQuery: String = "",
     playerViewModel: PlayerViewModel,
     currentSong: Song?,
     isPlaying: Boolean,
@@ -49,6 +50,7 @@ fun SongsList(
             items(songs, key = { it.id }) { song ->
                 SongListItem(
                     song = song,
+                    searchQuery = searchQuery,
                     isCurrentlyPlaying = song.id == currentSong?.id,
                     isPlaying = isPlaying,
                     onSongClick = { onSongClick(song, songs) },

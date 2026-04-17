@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.sonicflow.app.core.common.buildHighlightedText
 import com.sonicflow.app.core.domain.model.Artist
 
 /**
@@ -22,6 +23,7 @@ import com.sonicflow.app.core.domain.model.Artist
 @Composable
 fun ArtistsScreen(
     filteredArtists: List<Artist>? = null,
+    searchQuery: String = "",
     onArtistClick: (Artist) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -86,6 +88,7 @@ fun ArtistsScreen(
             items(artists, key = { it.id }) { artist ->
                 ArtistItem(
                     artist = artist,
+                    searchQuery = searchQuery,
                     onClick = { onArtistClick(artist) }
                 )
             }
@@ -116,13 +119,18 @@ private fun normalizeArtistName(artist: String): String {
 @Composable
 fun ArtistItem(
     artist: Artist,
+    searchQuery: String = "",
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     ListItem(
         headlineContent = {
             Text(
-                text = artist.name,
+                text = buildHighlightedText(
+                    fullText = artist.name,
+                    query = searchQuery,
+                    highlightColor = MaterialTheme.colorScheme.primary
+                ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

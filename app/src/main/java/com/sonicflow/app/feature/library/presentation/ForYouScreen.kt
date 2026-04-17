@@ -50,6 +50,9 @@ fun ForYouScreen(
     var showClearDialog by remember { mutableStateOf(false) }
     var sectionToClear by remember { mutableStateOf<ClearSection?>(null) }
 
+    val dailyMix by forYouViewModel.dailyMix.collectAsState(initial = emptyList())
+    val forgottenByMe by forYouViewModel.forgottenFavorites.collectAsState(initial = emptyList())
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 16.dp)
@@ -66,6 +69,36 @@ fun ForYouScreen(
         }
 
         item { Spacer(modifier = Modifier.height(24.dp)) }
+
+        // Section : Daily Mix
+        if (dailyMix.isNotEmpty()) {
+            item {
+                SectionHeader(
+                    title = "Your Daily Mix",
+                    icon = Icons.Default.AutoAwesome,
+                    onClearClick = null
+                )
+            }
+            item {
+                HorizontalSongList(songs = dailyMix, onSongClick = onSongClick)
+            }
+            item { Spacer(modifier = Modifier.height(24.dp)) }
+        }
+
+        // Section : Forgotten Favorites
+        if (forgottenByMe.isNotEmpty()) {
+            item {
+                SectionHeader(
+                    title = "Bring them back",
+                    icon = Icons.Default.Restore,
+                    onClearClick = null
+                )
+            }
+            item {
+                HorizontalSongList(songs = forgottenByMe, onSongClick = onSongClick)
+            }
+            item { Spacer(modifier = Modifier.height(24.dp)) }
+        }
 
         // Recently Played Section
         if (recentlyPlayed.isNotEmpty()) {
@@ -115,7 +148,7 @@ fun ForYouScreen(
                 SectionHeader(
                     title = "Recently Added",
                     icon = Icons.Default.NewReleases,
-                    onClearClick = null // Pas de clear pour Recently Added
+                    onClearClick = null
                 )
             }
             item {
@@ -153,7 +186,6 @@ fun ForYouScreen(
             confirmText = "Clear",
             isDestructive = true,
             onConfirm = {
-                // ⬇️ CORRECTION : Utiliser un LaunchedEffect
                 showClearDialog = false
                 val sectionToProcess = sectionToClear
                 sectionToClear = null

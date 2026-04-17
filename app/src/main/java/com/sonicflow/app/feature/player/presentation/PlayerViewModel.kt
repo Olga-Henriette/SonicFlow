@@ -64,24 +64,28 @@ class PlayerViewModel @Inject constructor(
             handleIntent(PlayerIntent.Next)
         }
 
-        sleepTimerManager.onTimerFinished = {
-            playerController.pause()
-        }
+        playerController.onMediaItemTransition = { newSongId ->
+            saveSongPlayDuration()
 
-        playerController.onMediaItemTransition = { newIndex ->
             val currentState = _state.value
-            if (newIndex < currentState.queue.size) {
-                saveSongPlayDuration()
+            val indexInQueue = currentState.queue.indexOfFirst { it.id == newSongId }
 
+            if (indexInQueue != -1) {
+                val newSong = currentState.queue[indexInQueue]
                 _state.update {
                     it.copy(
-                        currentIndex = newIndex,
-                        currentSong = currentState.queue[newIndex]
+                        currentIndex = indexInQueue,
+                        currentSong = newSong
                     )
                 }
 
                 songStartTime = System.currentTimeMillis()
-                lastSongId = currentState.queue[newIndex].id
+                lastSongId = newSongId
+
+                viewModelScope.launch {
+                    incrementPlayCountUseCase(newSongId)
+                    Timber.d("History updated: Song $newSongId added to recently played")
+                }
             }
         }
     }
@@ -90,7 +94,7 @@ class PlayerViewModel @Inject constructor(
         val songId = lastSongId ?: return
         val duration = System.currentTimeMillis() - songStartTime
 
-        if (duration >= 60000) { // Au moins 1 minute
+        if (duration >= 60000) { // Au moins 1 mn
             viewModelScope.launch {
                 incrementPlayCountUseCase(songId, duration)
                 Timber.d("Saved play duration: ${duration}ms for song $songId")
@@ -423,7 +427,6 @@ class PlayerViewModel @Inject constructor(
             // Activer shuffle : mélanger la queue
             shuffleQueue()
         } else {
-            // Désactiver shuffle : restaurer l'ordre original
             unshuffleQueue()
         }
 
@@ -455,14 +458,13 @@ class PlayerViewModel @Inject constructor(
             otherSongs
         }
 
-        // Sauvegarder l'ordre original pour pouvoir le restaurer
         _originalQueue = currentState.queue
         _originalIndex = currentState.currentIndex
 
         _state.update {
             it.copy(
                 queue = newQueue,
-                currentIndex = 0 // La position du chanson actuelle
+                currentIndex = 0
             )
         }
 

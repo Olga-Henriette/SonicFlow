@@ -17,6 +17,7 @@ import com.sonicflow.app.core.domain.repository.MusicRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import timber.log.Timber
@@ -36,14 +37,17 @@ class MusicRepositoryImpl @Inject constructor(
     private val playHistoryDao: PlayHistoryDao
 ) : MusicRepository {
 
-    // SONGS
+    private var cachedSongs: List<Song>? = null
 
     override fun getAllSongs(): Flow<Resource<List<Song>>> = flow {
-        emit(Resource.Loading())
+        // 1. Si on a déjà les chansons en mémoire, on les donne tout de suite !
+        cachedSongs?.let {
+            emit(Resource.Success(it))
+        } ?: emit(Resource.Loading())
 
+        // 2. On récupère les données fraîches et on gère les favoris
         mediaStoreDataSource.getAllSongs()
             .combine(favoriteDao.getFavoriteSongIds()) { songs, favoriteIds ->
-                // Marque les chansons favorites
                 songs.map { song ->
                     song.copy(isFavorite = favoriteIds.contains(song.id))
                 }
@@ -53,31 +57,25 @@ class MusicRepositoryImpl @Inject constructor(
                 emit(Resource.Error("Failed to load songs: ${e.message}"))
             }
             .collect { songs ->
+                // 3. On met à jour l'étagère pour la prochaine fois
+                cachedSongs = songs
                 emit(Resource.Success(songs))
             }
     }
 
     override suspend fun getSongById(id: Long): Song? {
-        var foundSong: Song? = null
-        getAllSongs().collect { resource ->
-            if (resource is Resource.Success) {
-                foundSong = resource.data?.find { it.id == id }
-            }
-        }
-        return foundSong
+        return cachedSongs?.find { it.id == id }
+            ?: getAllSongs().firstOrNull()?.data?.find { it.id == id }
     }
 
     override fun searchSongs(query: String): Flow<List<Song>> = flow {
-        getAllSongs().collect { resource ->
-            if (resource is Resource.Success) {
-                val filtered = resource.data?.filter {
-                    it.title.contains(query, ignoreCase = true) ||
-                            it.artist.contains(query, ignoreCase = true) ||
-                            it.album.contains(query, ignoreCase = true)
-                } ?: emptyList()
-                emit(filtered)
-            }
+        val songsToSearch = cachedSongs ?: getAllSongs().firstOrNull()?.data ?: emptyList()
+        val filtered = songsToSearch.filter {
+            it.title.contains(query, ignoreCase = true) ||
+                    it.artist.contains(query, ignoreCase = true) ||
+                    it.album.contains(query, ignoreCase = true)
         }
+        emit(filtered)
     }
 
     // ALBUMS
